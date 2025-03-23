@@ -1,0 +1,158 @@
+#:kivy 2.1.0
+<Detail>:
+    name:"detail"
+    
+    GridLayout :
+        #orientation : "vertical"
+        size : root.width, root.height
+        spacing : 1
+        cols : 1
+        background_color: (189/255, 189/255, 185/255,1)
+        canvas.before :
+            Color :
+                rgba : self.background_color
+            Rectangle :
+                source:"./app_images/back3.jpg"
+                size : self.size
+                pos : self.pos
+        BoxLayout:
+            orientation: 
+            #size_hint : (None, None)
+            #height : 80
+            #width : root.width
+            size_hint : (1, 1)
+            background_color: (123/255, 104/255, 238/255,1)
+            canvas.before :
+                Color :
+                    rgba : self.background_color
+                Rectangle :
+                    size : self.size
+                    pos : self.pos
+                Color:
+                    rgba: .5, .5, .5, 1
+                Line:
+                    width: 2
+                    rectangle: self.x, self.y, self.width, self.height
+            Label:
+                text : "Details"
+                font_size : 50
+                bold : True
+            Button:
+                size_hint:(.2, .7)
+                pos_hint : {'x':0, 'y':.1}
+                background_normal:''
+                background_color: (123/255, 104/255, 238/255,1)
+                on_release : app.root.current = "tout"
+                Image:
+                    source:"./app_images/retour.png"
+                    center_x : self.parent.center_x
+                    center_y : self.parent.center_y
+                    size_hint:(.2, .7)
+                    size : (50, 50)
+        ScrollView:
+            size_hint : (1, 5)
+            BoxLayout:
+                orientation:"vertical"
+                size_hint : (1, 2)
+                #height: self.height
+                BoxLayout:
+                    orientation : "vertical"
+                    size_hint : (1, 3)
+                    BoxLayout:
+                        orientation: "vertical"
+                        size_hint : (1, .5)
+                        BoxLayout:
+                            orientation:
+                            Label :
+                                id : num
+                                text : ""
+                                color : (0,0,0,0)
+                                background_color: (1, 1, 1, 0)
+                                canvas.before :
+                                    Color :
+                                        rgba : self.background_color
+                                    Rectangle :
+                                        size : self.size
+                                        pos : self.pos
+                                    
+
+                        
+                        Label :
+                            id : nom
+                            halign : "center"
+                            font_size : 30
+                            size_hint : (.8,1)
+                            pos_hint : {'center_x': .5}
+                            canvas.before :
+                                Color:
+                                    rgba: .5, .5, .5, 1
+                                Line:
+                                    width: 2
+                                    #rectangle: self.x, self.y, self.width, self.height
+                                    points: self.x, self.y, self.x + self.width, self.y
+                    BoxLayout:
+                        orientation: "vertical"
+                        padding : 0,10,0,10
+                        background_color: (123/255, 104/255, 238/255,0)
+                        canvas.before :
+                            Color:
+                                rgba: .5, .5, .5, 1
+                            Line:
+                                width: 1
+                                points: self.x+ 10, self.y, self.x + self.width - 10, self.y
+                    
+                        Box:
+                            id : photo1
+                            
+                        
+                    BoxLayout:
+                        orientation: "vertical"
+                        padding : 0,10,0,10
+                        canvas.before :
+                            Color:
+                                rgba: .5, .5, .5, 1
+                            Line:
+                                width: 1
+                                points: self.x+ 10, self.y, self.x + self.width - 10, self.y
+                    
+                        Box:
+                            id : photo2
+                            
+                        
+                    BoxLayout:
+                        orientation: "vertical"
+                        padding : 0,10,0,10
+                        canvas.before :
+                            Color:
+                                rgba: .5, .5, .5, 1
+                            Line:
+                                width: 1
+                                points: self.x+ 10, self.y, self.x + self.width - 10, self.y
+                    
+                        Box:
+                            id : photo3
+                    BoxLayout:
+                        orientation: "vertical"
+                        padding : 0,10,0,10
+                        
+                        ScrollView:
+                            size_hint_y: 1
+                            #height: 80  # Taille de la ScrollView pour définir l'espace scrolable
+                            size_hint_x: .8
+                            pos_hint: {'center_x': .5}
+                            Label:
+                                id: desc
+                                valign: "top"
+                                halign: "center"
+                                #size_hint_x: .8
+                                #pos_hint: {'center_x': .5}
+                                text_size: self.width, None  # Ajuster la largeur du texte mais pas la hauteur
+                                size_hint_y: None
+                                height: self.texture_size[1]  # Ajuster la hauteur du label en fonction du texte
+                                canvas.before:
+                                    Color:
+                                        rgba: .5, .5, 1, .1
+                                    Rectangle:
+                                        size: self.size
+                                        pos: self.pos
+                            

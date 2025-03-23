@@ -1,0 +1,142 @@
+#:kivy 2.1.0
+<Home1>:
+    name:"home"
+    
+    GridLayout :
+        size : root.width, root.height
+        spacing : 1
+        cols : 1
+
+        canvas.before :
+            Color :
+                rgba : 1,1,1,1
+            Rectangle :
+                source:"./app_images/back3.jpg"
+                size : self.size
+                pos : self.pos
+        
+        BoxLayout:
+            orientation: "vertical"
+            #height : 80
+            #width : root.width
+            #size_hint: (.5,3)
+
+            background_color: (123/255, 104/255, 238/255,1) #(0/255, 189/255, 185/255,1)
+            canvas.before :
+                Color :
+                    rgba : self.background_color
+                Rectangle :
+                    size : self.size
+                    pos : self.pos
+                Color:
+                    rgba: .5, .5, .5, 1
+                Line:
+                    width: 1
+                    rectangle: self.x, self.y, self.width, self.height
+            Label:
+                text : "Face ID"
+                font_size : 50
+                bold : True
+                
+            
+        
+        
+        
+        BoxLayout:
+            orientation:
+            id : camera
+            size_hint : (1, 4)
+            #padding : 100
+            background_color: (189/255, 189/255, 185/255,1)
+            
+            canvas.before :
+                Color :
+                    rgba : (1,1,1,1) #self.background_color
+                Rectangle :
+                    source:"./app_images/logo.png"
+                    size : self.size
+                    pos : self.pos
+                
+            
+        
+        BoxLayout:
+            orientation: "horizontal"
+            #spacing : 20
+            padding :0,20,0,5
+            BoxLayout:
+                orientation: 
+                Button:
+                    on_press : root.animate(self)
+                    on_release : app.tout()
+                    background_color: 0, 0, 0, 0  # Set the background color to transparent
+                    background_normal:''
+                    size_hint : (.2,1)
+                    pos_hint:{'center_x': 0.5}
+                    Image:
+                        source:"./app_images/tout2.png"
+                        center_x : self.parent.center_x
+                        center_y : self.parent.center_y
+                        size_hint:(1, 1)
+                    
+                
+            BoxLayout:
+                orientation: 
+                Button:
+                    on_press : root.animate(self)
+                    on_release : app.root.add_im()
+                    background_color: 0, 0, 0, 0  # Set the background color to transparent
+                    background_normal:''
+                    size_hint : (.2,1)
+                    pos_hint:{'center_x': 0.5}
+                    Image:
+                        source:"./app_images/add.png"
+                        center_x : self.parent.center_x
+                        center_y : self.parent.center_y
+                        size_hint:(1, 1)
+                    
+                        
+                
+
+        BoxLayout:
+            orientation: "vertical"
+            #padding : 50,5,50,5
+            #size_hint : (1,2)
+            RoundedButton:
+                size_hint : (.2,1)
+                pos_hint:{'center_x': 0.5}
+                on_press : root.animate(self)
+                on_release: root.cam3()
+                
+                Image:
+                    source:"./app_images/camra.png"
+                    center_x : self.parent.center_x
+                    center_y : self.parent.center_y
+                    size_hint:(1, 1)
+                    #size : (100, 100)
+        BoxLayout:
+            orientation:
+            size_hint : (None,.2)
+        
+
+                
+<RoundedButton@Button>:
+    background_color: 0, 0, 0, 0  # Set the background color to transparent
+    background_normal:''
+    canvas.before:
+        Color:
+            rgba: 65/255, 105/255, 225/255, 0  # Set the button color
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [self.width/2] # Set the corner radius (10 pixels in this example)
+
+<RoundedButton3@Button>:
+    background_color: 0, 0, 0, 0  # Set the background color to transparent
+    background_normal:''
+    canvas.before:
+        Color:
+            rgba: 123/255, 104/255, 238/255,1  # Set the button color
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [10,]*5 # Set the corner radius (10 pixels in this example)

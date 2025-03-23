@@ -1,0 +1,135 @@
+#:kivy 2.1.0
+<Camra>:
+    name:"camra"
+    
+    GridLayout :
+        size : root.width, root.height
+        spacing : 1
+        cols : 1
+
+        canvas.before :
+            Color :
+                rgba : 1,1,1,1
+            Rectangle :
+                source:"./app_images/back3.jpg"
+                size : self.size
+                pos : self.pos
+        
+        BoxLayout:
+            orientation: 
+            #height : 80
+            #width : root.width
+            #size_hint: (.5,3)
+
+            background_color: (123/255, 104/255, 238/255,1) #(0/255, 189/255, 185/255,1)
+            canvas.before :
+                Color :
+                    rgba : self.background_color
+                Rectangle :
+                    size : self.size
+                    pos : self.pos
+                Color:
+                    rgba: .5, .5, .5, 1
+                Line:
+                    width: 1
+                    rectangle: self.x, self.y, self.width, self.height
+            Label:
+                text : "Camera"
+                font_size : 50
+                bold : True
+            Button:
+                size_hint:(.2, .7)
+                pos_hint : {'x':0, 'y':.1}
+                background_normal:''
+                background_color: (123/255, 104/255, 238/255,1)
+                on_release : app.root.retour()
+                Image:
+                    source:"./app_images/retour.png"
+                    center_x : self.parent.center_x
+                    center_y : self.parent.center_y
+                    size_hint:(.2, .7)
+                    size : (50, 50)
+                
+            
+        
+        
+        
+        BoxLayout:
+            orientation:
+            id : camera
+            size_hint : (1, 5)
+            #padding : 100
+            background_color: (189/255, 189/255, 185/255,1)
+            
+            canvas.before :
+                Color :
+                    rgba : (1,1,1,1) #self.background_color
+                
+                
+            
+        
+        BoxLayout:
+            orientation: "horizontal"
+            #spacing : 20
+            padding :0,20,0,5
+            BoxLayout:
+                orientation: 
+                Button:
+                    id : annuler
+                    background_color: 1, 0, 0, 0  # Set the background color to transparent
+                    background_normal:''
+                    size_hint : (.2,1)
+                    pos_hint:{'center_x': 0.5}
+                    #text : "Annuler"
+                    on_release : app.annuler()
+                    opacity : .1
+                    Image:
+                        source:"./app_images/anuler.png"
+                        center_x : self.parent.center_x
+                        center_y : self.parent.center_y
+                        size_hint:(1, 1)
+                    
+                    
+                
+            BoxLayout:
+                orientation: 
+                Button:
+                    id : ajouter
+                    background_color: 0, 1, 0, 0  # Set the background color to transparent
+                    background_normal:''
+                    size_hint : (.2,1)
+                    pos_hint:{'center_x': 0.5}
+                    #text : "OK"
+                    opacity : .1
+                    on_release : app.ajout()
+                    Image:
+                        source:"./app_images/ok.png"
+                        center_x : self.parent.center_x
+                        center_y : self.parent.center_y
+                        size_hint:(1, 1)
+                        #size : (50, 50)
+                    
+                        
+                
+
+        BoxLayout:
+            orientation: "vertical"
+            #padding : 50,5,50,5
+            #size_hint : (1,2)
+            RoundedButton:
+                size_hint : (.2,1)
+                pos_hint:{'center_x': 0.5}
+                on_press : app.save_im()
+                
+                Image:
+                    source:"./app_images/camra.png"
+                    center_x : self.parent.center_x
+                    center_y : self.parent.center_y
+                    size_hint:(1, 1)
+                    #size : (100, 100)
+        BoxLayout:
+            orientation:
+            size_hint : (None,.2)
+        
+
+                

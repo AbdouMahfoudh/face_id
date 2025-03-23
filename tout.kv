@@ -1,0 +1,108 @@
+#:kivy 2.1.0
+<Tout>:
+    name:"tout"
+    bx : bx
+    GridLayout :
+        #orientation : "vertical"
+        size : root.width, root.height
+        spacing : 1
+        cols : 1
+        background_color: (189/255, 189/255, 185/255,1)
+        canvas.before :
+            Color :
+                rgba : self.background_color
+            Rectangle :
+                source:"./app_images/back3.jpg"
+                size : self.size
+                pos : self.pos
+        BoxLayout:
+            orientation: 
+            size_hint : (1, None)
+            height : 80
+            #width : root.width
+            background_color: (123/255, 104/255, 238/255,1) #(0/255, 189/255, 185/255,1)
+            canvas.before :
+                Color :
+                    rgba : self.background_color
+                Rectangle :
+                    size : self.size
+                    pos : self.pos
+                Color:
+                    rgba: .5, .5, .5, 1
+                Line:
+                    width: 2
+                    rectangle: self.x, self.y, self.width, self.height
+            Label:
+                text : "Tout"
+                font_size : 50
+                bold : True
+                
+                #pos_hint : {'center_x' : 0.5, 'y':0}
+            Button:
+                
+                size_hint:(.2, .7)
+                pos_hint : {'x':0, 'y':.1}
+                background_normal:''
+                background_color: (123/255, 104/255, 238/255,1) # (0/255, 175/255, 175/255,1)
+                on_release : app.root.current = "home"
+                Image:
+                    source:"./app_images/retour.png"
+                    center_x : self.parent.center_x
+                    center_y : self.parent.center_y
+                    size_hint:(.2, .7)
+                    size : (50, 50)
+        BoxLayout:
+            orientation:
+            id : bx_search
+            size_hint:(.8, .3)
+            padding: (20, 0)
+            TextInput :
+                id : search
+
+                halign : "center"
+                valign: 'bottom'
+                font_size : 30
+                size_hint : (.8,.6)
+                #pos_hint :{'center_y':.5}
+                multiline: False
+                pos_hint : {'center_x': .5, 'center_y':.5}
+                hint_text : ''
+                background_color: (123/255, 104/255, 238/255,0)
+                on_text_validate: app.root.search(self)
+
+            Button:
+                
+                size_hint:(.1, .7)
+                pos_hint : {'center_x':.5, 'center_y':.5}
+                background_normal:''
+                background_color: (123/255, 104/255, 238/255,0) # (0/255, 175/255, 175/255,1)
+                on_release : app.root.search()
+                Image:
+                    id : but_search
+                    source:"./app_images/search.png"
+                    center_x : self.parent.center_x
+                    center_y : self.parent.center_y
+                    size_hint:(.2, .7)
+                    size : (20, 20)
+            
+        ScrollView:
+            size_hint : (1, 5)
+            BoxLayout:
+                orientation: "vertical"
+                id : bx
+                size_hint : (1, None)
+                height: self.minimum_height
+                canvas.before :
+                    Color:
+                        rgba: .5, .5, .5, 1
+                    Line:
+                        width: 2
+                        rectangle: self.x, self.y, self.width, self.height
+        BoxLayout:
+            orientation:
+            size_hint : (1, .2)
+            
+                    
+            
+            
+
