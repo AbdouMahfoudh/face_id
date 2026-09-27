@@ -1,5 +1,10 @@
-# Seul api.php est accessible depuis Internet.
-<FilesMatch "^(?!api\.php$).*$">
+# Ouvrir le dossier affiche la réponse de l'API au lieu de la liste des fichiers.
+DirectoryIndex api.php
+
+# Fichiers qui ne doivent jamais être lisibles depuis Internet.
+<Files "config.php">
     Require all denied
-</FilesMatch>
-Options -Indexes
+</Files>
+<Files "LISEZMOI.md">
+    Require all denied
+</Files>

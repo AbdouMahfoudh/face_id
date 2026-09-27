@@ -112,6 +112,12 @@ class RemoteApi {
     try {
       final req = await client.postUrl(endpoint);
       req.headers.contentType = ContentType.json;
+      // Some web firewalls reject requests that do not look like a browser.
+      req.headers.set(HttpHeaders.acceptHeader, 'application/json, */*');
+      req.headers.set(
+        HttpHeaders.userAgentHeader,
+        'Mozilla/5.0 (Linux; Android) FaceIDEcole/1.0',
+      );
       req.add(
         utf8.encode(
           jsonEncode({...body, 'api_key': apiKey, 'device_id': deviceId}),
@@ -127,7 +133,8 @@ class RemoteApi {
       }
       if (decoded is! Map<String, dynamic>) {
         throw RemoteException(
-          'Réponse invalide du serveur (HTTP ${res.statusCode}). Vérifiez l’adresse.',
+          'Réponse invalide du serveur (HTTP ${res.statusCode}). '
+          'Vérifiez l’adresse.${_snippet(text)}',
         );
       }
       if (decoded['ok'] != true) {
@@ -148,5 +155,16 @@ class RemoteApi {
     } finally {
       client.close(force: true);
     }
+  }
+
+  /// First words of a non-JSON (usually HTML) server reply, for diagnosis.
+  static String _snippet(String body) {
+    final plain = body
+        .replaceAll(RegExp(r'<(script|style)[^>]*>.*?</\1>', dotAll: true), ' ')
+        .replaceAll(RegExp(r'<[^>]*>'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (plain.isEmpty) return '';
+    return '\nServeur : « ${plain.length > 160 ? '${plain.substring(0, 160)}…' : plain} »';
   }
 }
