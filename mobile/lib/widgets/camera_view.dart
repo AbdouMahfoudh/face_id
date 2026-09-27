@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 
 /// Live camera preview; call [CameraViewState.capture] to take a photo.
 class CameraView extends StatefulWidget {
-  const CameraView({super.key, this.preferFront = false});
+  const CameraView({
+    super.key,
+    this.preferFront = false,
+    this.resolution = ResolutionPreset.high,
+  });
 
   final bool preferFront;
+  final ResolutionPreset resolution;
 
   @override
   State<CameraView> createState() => CameraViewState();
@@ -50,8 +55,11 @@ class CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     _controller = null;
     if (mounted) setState(() {});
     await old?.dispose();
-    final c = CameraController(_cameras[_index], ResolutionPreset.high,
-        enableAudio: false);
+    final c = CameraController(
+      _cameras[_index],
+      widget.resolution,
+      enableAudio: false,
+    );
     try {
       await c.initialize();
       if (!mounted) {
@@ -117,9 +125,11 @@ class CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         color: Colors.black,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(24),
-        child: Text(_error!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70)),
+        child: Text(
+          _error!,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white70),
+        ),
       );
     }
     final c = _controller;

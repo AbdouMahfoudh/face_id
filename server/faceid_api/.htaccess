@@ -1,0 +1,5 @@
+# Seul api.php est accessible depuis Internet.
+<FilesMatch "^(?!api\.php$).*$">
+    Require all denied
+</FilesMatch>
+Options -Indexes

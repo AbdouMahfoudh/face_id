@@ -10,7 +10,17 @@ class MatchResult {
   final Person? person;
   final double score;
 
-  const MatchResult(this.status, this.person, this.score);
+  /// Set when the match comes from the online database (read-only).
+  final bool remote;
+  final Uint8List? remotePhoto;
+
+  const MatchResult(
+    this.status,
+    this.person,
+    this.score, {
+    this.remote = false,
+    this.remotePhoto,
+  });
 }
 
 class FaceMatcher {
@@ -29,8 +39,12 @@ class FaceMatcher {
     return dot / (sqrt(na) * sqrt(nb));
   }
 
-  static MatchResult match(Float32List probe, Iterable<Person> people,
-      {String? excludePersonId, String? model}) {
+  static MatchResult match(
+    Float32List probe,
+    Iterable<Person> people, {
+    String? excludePersonId,
+    String? model,
+  }) {
     Person? best;
     double bestScore = -1;
     for (final person in people) {
@@ -45,12 +59,17 @@ class FaceMatcher {
       }
     }
     if (best == null) return const MatchResult(MatchStatus.unknown, null, 0);
-    if (bestScore >= recognizedThreshold) {
-      return MatchResult(MatchStatus.recognized, best, bestScore);
-    }
-    if (bestScore >= uncertainThreshold) {
-      return MatchResult(MatchStatus.uncertain, best, bestScore);
-    }
-    return MatchResult(MatchStatus.unknown, null, bestScore);
+    final status = statusFor(bestScore);
+    return MatchResult(
+      status,
+      status == MatchStatus.unknown ? null : best,
+      bestScore,
+    );
+  }
+
+  static MatchStatus statusFor(double score) {
+    if (score >= recognizedThreshold) return MatchStatus.recognized;
+    if (score >= uncertainThreshold) return MatchStatus.uncertain;
+    return MatchStatus.unknown;
   }
 }

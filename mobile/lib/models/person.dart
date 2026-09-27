@@ -9,6 +9,9 @@ class Person {
   final DateTime updatedAt;
   final List<FaceSample> samples;
 
+  /// True once this version of the person has been uploaded to the server.
+  final bool synced;
+
   const Person({
     required this.id,
     required this.name,
@@ -17,18 +20,20 @@ class Person {
     required this.createdAt,
     required this.updatedAt,
     this.samples = const [],
+    this.synced = false,
   });
 
   String? get coverPhoto => samples.isEmpty ? null : samples.first.photoPath;
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'name': name,
-        'role': role,
-        'description': description,
-        'created_at': createdAt.toIso8601String(),
-        'updated_at': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'role': role,
+    'description': description,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': updatedAt.toIso8601String(),
+    'synced': synced ? 1 : 0,
+  };
 
   factory Person.fromRow(Map<String, Object?> row, List<FaceSample> samples) {
     return Person(
@@ -39,6 +44,7 @@ class Person {
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
       samples: samples,
+      synced: (row['synced'] as int? ?? 0) == 1,
     );
   }
 }
@@ -59,12 +65,12 @@ class FaceSample {
   });
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'person_id': personId,
-        'embedding': embeddingToBytes(embedding),
-        'photo_path': photoPath,
-        'model': model,
-      };
+    'id': id,
+    'person_id': personId,
+    'embedding': embeddingToBytes(embedding),
+    'photo_path': photoPath,
+    'model': model,
+  };
 
   factory FaceSample.fromRow(Map<String, Object?> row) {
     return FaceSample(

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../app_state.dart';
 import '../services/matcher.dart';
+import '../services/remote_api.dart';
 import '../widgets/camera_view.dart';
 import '../widgets/face_guide.dart';
 import 'person_detail_screen.dart';
@@ -44,12 +45,28 @@ class _ScanScreenState extends State<ScanScreen> {
         await _showSheet(const _NoFaceResult());
         return;
       }
-      final result = state.identify(analysis.embedding!);
+      final embedding = analysis.embedding!;
+      var result = state.identify(embedding);
+      String? note;
+      if (state.serverConfigured) {
+        try {
+          final online = await state.identifyOnline(embedding);
+          final isLocal = state.people.any((p) => p.id == online?.person?.id);
+          if (online != null && !isLocal && online.score > result.score) {
+            result = online;
+          }
+        } on RemoteException {
+          note = 'Hors ligne : comparaison avec ce téléphone uniquement.';
+        }
+      }
       if (!mounted) return;
-      await _showSheet(_MatchSheet(
-        result: result,
-        otherFaces: analysis.faceCount - 1,
-      ));
+      await _showSheet(
+        _MatchSheet(
+          result: result,
+          otherFaces: analysis.faceCount - 1,
+          note: note,
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -61,15 +78,16 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _showSheet(Widget child) => showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (_) => SafeArea(child: child),
-      );
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => SafeArea(child: child),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final empty = AppScope.of(context).people.isEmpty;
+    final state = AppScope.of(context);
+    final empty = state.people.isEmpty && !state.serverConfigured;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -146,11 +164,15 @@ class _NoFaceResult extends StatelessWidget {
         children: [
           Icon(Icons.no_photography_outlined, size: 56),
           SizedBox(height: 12),
-          Text('Aucun visage détecté',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            'Aucun visage détecté',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           SizedBox(height: 8),
-          Text('Placez le visage de face, bien éclairé, dans le cadre.',
-              textAlign: TextAlign.center),
+          Text(
+            'Placez le visage de face, bien éclairé, dans le cadre.',
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -158,10 +180,15 @@ class _NoFaceResult extends StatelessWidget {
 }
 
 class _MatchSheet extends StatelessWidget {
-  const _MatchSheet({required this.result, required this.otherFaces});
+  const _MatchSheet({
+    required this.result,
+    required this.otherFaces,
+    this.note,
+  });
 
   final MatchResult result;
   final int otherFaces;
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
@@ -170,8 +197,16 @@ class _MatchSheet extends StatelessWidget {
     final percent = '${(result.score.clamp(0, 1) * 100).round()} %';
 
     final (Color color, IconData icon, String title) = switch (result.status) {
-      MatchStatus.recognized => (Colors.green, Icons.verified, 'Personne reconnue'),
-      MatchStatus.uncertain => (Colors.orange, Icons.help_outline, 'À vérifier'),
+      MatchStatus.recognized => (
+        Colors.green,
+        Icons.verified,
+        'Personne reconnue',
+      ),
+      MatchStatus.uncertain => (
+        Colors.orange,
+        Icons.help_outline,
+        'À vérifier',
+      ),
       MatchStatus.unknown => (scheme.error, Icons.person_off, 'INCONNU'),
     };
 
@@ -186,9 +221,14 @@ class _MatchSheet extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 32),
               const SizedBox(width: 8),
-              Text(title,
-                  style: TextStyle(
-                      color: color, fontSize: 24, fontWeight: FontWeight.bold)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -210,20 +250,37 @@ class _MatchSheet extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 40,
-                  backgroundImage: person.coverPhoto == null
-                      ? null
-                      : FileImage(File(person.coverPhoto!)),
+                  backgroundImage: result.remote
+                      ? (result.remotePhoto == null
+                            ? null
+                            : MemoryImage(result.remotePhoto!))
+                      : (person.coverPhoto == null
+                            ? null
+                            : FileImage(File(person.coverPhoto!))),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(person.name,
-                          style: Theme.of(context).textTheme.titleLarge),
+                      Text(
+                        person.name,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                       if (person.role.isNotEmpty) Text(person.role),
-                      Text('Similarité : $percent',
-                          style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        'Similarité : $percent',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (result.remote)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Chip(
+                            avatar: Icon(Icons.cloud_outlined, size: 18),
+                            label: Text('Base en ligne'),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -233,17 +290,28 @@ class _MatchSheet extends StatelessWidget {
               const SizedBox(height: 12),
               Text(person.description),
             ],
+            if (!result.remote) ...[
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  final nav = Navigator.of(context);
+                  nav.pop();
+                  nav.push(
+                    MaterialPageRoute(
+                      builder: (_) => PersonDetailScreen(personId: person.id),
+                    ),
+                  );
+                },
+                child: const Text('Voir la fiche complète'),
+              ),
+            ],
+          ],
+          if (note != null) ...[
             const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () {
-                final nav = Navigator.of(context);
-                nav.pop();
-                nav.push(
-                  MaterialPageRoute(
-                      builder: (_) => PersonDetailScreen(personId: person.id)),
-                );
-              },
-              child: const Text('Voir la fiche complète'),
+            Text(
+              note!,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
           if (otherFaces > 0) ...[

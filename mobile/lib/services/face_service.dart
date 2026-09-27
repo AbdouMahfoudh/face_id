@@ -14,7 +14,17 @@ class FaceAnalysis {
   final Float32List? embedding;
   final Uint8List? thumbnailJpg;
 
-  const FaceAnalysis(this.faceCount, this.embedding, this.thumbnailJpg);
+  /// Head rotation of the analyzed face, in degrees (ML Kit Euler Y / X).
+  final double yaw;
+  final double pitch;
+
+  const FaceAnalysis(
+    this.faceCount,
+    this.embedding,
+    this.thumbnailJpg, {
+    this.yaw = 0,
+    this.pitch = 0,
+  });
 }
 
 class FaceService {
@@ -43,18 +53,23 @@ class FaceService {
   /// Detects faces in the photo at [path] and embeds the largest one.
   Future<FaceAnalysis> analyze(String path) async {
     final tmp = await getTemporaryDirectory();
-    final uprightPath =
-        p.join(tmp.path, 'upright_${DateTime.now().microsecondsSinceEpoch}.jpg');
+    final uprightPath = p.join(
+      tmp.path,
+      'upright_${DateTime.now().microsecondsSinceEpoch}.jpg',
+    );
     try {
       // ML Kit and our crop must see the same pixels, so bake EXIF rotation first.
       final ok = await compute(_writeUpright, [path, uprightPath]);
       if (!ok) throw const FaceServiceException('Image illisible.');
 
-      final faces =
-          await _detector.processImage(InputImage.fromFilePath(uprightPath));
+      final faces = await _detector.processImage(
+        InputImage.fromFilePath(uprightPath),
+      );
       if (faces.isEmpty) return const FaceAnalysis(0, null, null);
 
-      faces.sort((a, b) => _area(b.boundingBox).compareTo(_area(a.boundingBox)));
+      faces.sort(
+        (a, b) => _area(b.boundingBox).compareTo(_area(a.boundingBox)),
+      );
       final face = faces.first;
       final left = face.landmarks[FaceLandmarkType.leftEye]?.position;
       final right = face.landmarks[FaceLandmarkType.rightEye]?.position;
@@ -68,7 +83,12 @@ class FaceService {
           cy: box.center.dy,
           size: max(box.width, box.height),
           eyes: (left != null && right != null)
-              ? [left.x.toDouble(), left.y.toDouble(), right.x.toDouble(), right.y.toDouble()]
+              ? [
+                  left.x.toDouble(),
+                  left.y.toDouble(),
+                  right.x.toDouble(),
+                  right.y.toDouble(),
+                ]
               : null,
         ),
       );
@@ -79,7 +99,13 @@ class FaceService {
       for (var i = 0; i < _embeddingSize; i++) {
         sum[i] = a[i] + b[i];
       }
-      return FaceAnalysis(faces.length, _l2normalize(sum), crop.thumbnailJpg);
+      return FaceAnalysis(
+        faces.length,
+        _l2normalize(sum),
+        crop.thumbnailJpg,
+        yaw: face.headEulerAngleY ?? 0,
+        pitch: face.headEulerAngleX ?? 0,
+      );
     } finally {
       final f = File(uprightPath);
       if (await f.exists()) await f.delete();
@@ -160,8 +186,9 @@ _CropResult _cropFace(_CropRequest r) {
   final e = r.eyes;
   if (e != null) {
     // Order eyes by x so the angle is the tilt of the eye line in the image.
-    final (x1, y1, x2, y2) =
-        e[0] <= e[2] ? (e[0], e[1], e[2], e[3]) : (e[2], e[3], e[0], e[1]);
+    final (x1, y1, x2, y2) = e[0] <= e[2]
+        ? (e[0], e[1], e[2], e[3])
+        : (e[2], e[3], e[0], e[1]);
     angle = atan2(y2 - y1, x2 - x1);
   }
   final cosA = cos(angle), sinA = sin(angle);

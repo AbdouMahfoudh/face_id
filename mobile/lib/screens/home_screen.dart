@@ -4,13 +4,15 @@ import '../app_state.dart';
 import 'people_screen.dart';
 import 'person_form_screen.dart';
 import 'scan_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final count = AppScope.of(context).people.length;
+    final state = AppScope.of(context);
+    final count = state.people.length;
     final scheme = Theme.of(context).colorScheme;
 
     void open(Widget page) =>
@@ -30,14 +32,25 @@ class HomeScreen extends StatelessWidget {
                   child: Icon(Icons.face, color: scheme.onPrimaryContainer),
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('FaceID École',
-                        style: Theme.of(context).textTheme.headlineSmall),
-                    Text('$count personne${count > 1 ? 's' : ''} enregistrée${count > 1 ? 's' : ''}',
-                        style: Theme.of(context).textTheme.bodyMedium),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'FaceID École',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      Text(
+                        '$count personne${count > 1 ? 's' : ''} sur ce téléphone',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Réglages',
+                  icon: Icon(_statusIcon(state.serverStatus)),
+                  onPressed: () => open(const SettingsScreen()),
                 ),
               ],
             ),
@@ -75,8 +88,7 @@ class HomeScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Toutes les données restent sur ce téléphone. '
-                  'Pour de meilleurs résultats, enregistrez 3 photos de face, bien éclairées.',
+                  _statusText(state),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -86,6 +98,29 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _statusIcon(ServerStatus s) => switch (s) {
+  ServerStatus.notConfigured => Icons.settings_outlined,
+  ServerStatus.unknown => Icons.cloud_queue,
+  ServerStatus.online => Icons.cloud_done_outlined,
+  ServerStatus.offline => Icons.cloud_off_outlined,
+};
+
+String _statusText(AppState state) {
+  final pending = state.pendingCount == 0
+      ? ''
+      : ' ${state.pendingCount} modification(s) en attente d’envoi.';
+  return switch (state.serverStatus) {
+    ServerStatus.notConfigured =>
+      'Mode hors ligne : les données restent sur ce téléphone. '
+          'Configurez le serveur dans Réglages (icône en haut à droite).',
+    ServerStatus.online =>
+      'Connecté au serveur : les scans sont aussi comparés à la base en ligne.$pending',
+    ServerStatus.offline =>
+      'Serveur injoignable : comparaison avec ce téléphone uniquement.$pending',
+    ServerStatus.unknown => 'Serveur configuré.$pending',
+  };
 }
 
 class _BigAction extends StatelessWidget {
@@ -121,11 +156,13 @@ class _BigAction extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(color: onColor, fontWeight: FontWeight.bold)),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: onColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(subtitle, style: TextStyle(color: onColor)),
                   ],
@@ -140,8 +177,11 @@ class _BigAction extends StatelessWidget {
 }
 
 class _SmallAction extends StatelessWidget {
-  const _SmallAction(
-      {required this.icon, required this.title, required this.onTap});
+  const _SmallAction({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String title;
@@ -162,10 +202,13 @@ class _SmallAction extends StatelessWidget {
             children: [
               Icon(icon, size: 36, color: scheme.onSecondaryContainer),
               const SizedBox(height: 8),
-              Text(title,
-                  style: TextStyle(
-                      color: scheme.onSecondaryContainer,
-                      fontWeight: FontWeight.w600)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: scheme.onSecondaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),

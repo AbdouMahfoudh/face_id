@@ -29,14 +29,17 @@ class PersonDetailScreen extends StatelessWidget {
         builder: (c) => AlertDialog(
           title: Text('Supprimer ${person.name} ?'),
           content: const Text(
-              'Sa fiche et ses photos seront effacées définitivement.'),
+            'Sa fiche et ses photos seront effacées définitivement.',
+          ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('Annuler')),
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Annuler'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: const Text('Supprimer')),
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Supprimer'),
+            ),
           ],
         ),
       );
@@ -55,7 +58,8 @@ class PersonDetailScreen extends StatelessWidget {
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => PersonFormScreen(existing: person)),
+                builder: (_) => PersonFormScreen(existing: person),
+              ),
             ),
           ),
           IconButton(
@@ -76,8 +80,12 @@ class PersonDetailScreen extends StatelessWidget {
               separatorBuilder: (_, _) => const SizedBox(width: 12),
               itemBuilder: (_, i) => ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.file(File(person.samples[i].photoPath),
-                    width: 140, height: 140, fit: BoxFit.cover),
+                child: Image.file(
+                  File(person.samples[i].photoPath),
+                  width: 140,
+                  height: 140,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
@@ -95,6 +103,24 @@ class PersonDetailScreen extends StatelessWidget {
           Text(
             'Ajouté le ${_date(person.createdAt)} · modifié le ${_date(person.updatedAt)}',
             style: text.bodySmall,
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(
+                person.synced
+                    ? Icons.cloud_done_outlined
+                    : Icons.cloud_upload_outlined,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                person.synced
+                    ? 'Envoyé au serveur'
+                    : 'En attente d’envoi au serveur',
+                style: text.bodySmall,
+              ),
+            ],
           ),
         ],
       ),
