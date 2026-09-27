@@ -39,7 +39,11 @@ function db(): PDO
             // Message sans les identifiants (l'exception d'origine les contient).
             throw new RuntimeException(
                 'Connexion à MySQL impossible (erreur ' . $e->getCode() . '). '
-                . 'Vérifiez DB_HOST, DB_PORT, DB_USER et DB_PASS dans config.php.'
+                . 'Vérifiez DB_HOST, DB_PORT, DB_USER et DB_PASS dans ' . __DIR__ . DIRECTORY_SEPARATOR
+                . 'config.php. Ce fichier contient actuellement : serveur ' . DB_HOST . ':' . DB_PORT
+                . ', mot de passe ' . (strpos(DB_PASS, 'CHANGEZ_MOI') === 0
+                    ? 'NON REMPLI (encore CHANGEZ_MOI).'
+                    : 'rempli (' . strlen(DB_PASS) . ' caractères).')
             );
         }
         ensure_schema($pdo);
