@@ -30,6 +30,17 @@ class School {
   const School(this.id, this.name, this.city);
 }
 
+/// Result of a matricule lookup in the school's management system.
+class StudentLookup {
+  final bool found;
+
+  /// Person fields (same keys as [Person.fields]) the system knows.
+  final Map<String, String> fields;
+  final String recordUrl;
+
+  const StudentLookup(this.found, this.fields, this.recordUrl);
+}
+
 /// Best match found in the online database.
 class RemoteMatch {
   final Person? person;
@@ -132,6 +143,19 @@ class RemoteApi {
 
   Future<void> deletePersons(List<String> ids) =>
       _post({'action': 'delete_persons', 'ids': ids});
+
+  Future<StudentLookup> lookupStudent(String matricule) async {
+    final r = await _post({
+      'action': 'lookup_student',
+      'matricule': matricule,
+    }, timeout: const Duration(seconds: 15));
+    final raw = r['fields'];
+    return StudentLookup(r['found'] == true, {
+      if (raw is Map)
+        for (final e in raw.entries)
+          if (e.value is String) '${e.key}': e.value as String,
+    }, (r['record_url'] as String?) ?? '');
+  }
 
   Future<RemoteMatch> identify(
     Float32List embedding,

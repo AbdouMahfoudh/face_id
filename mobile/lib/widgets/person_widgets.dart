@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_state.dart';
 import '../models/person.dart';
@@ -180,6 +181,38 @@ class PersonInfoSections extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: children,
+    );
+  }
+}
+
+/// Opens [person]'s record in the school's management system, when the
+/// school has one and the person has a matricule.
+class ManagementLinkButton extends StatelessWidget {
+  const ManagementLinkButton({super.key, required this.person});
+
+  final Person person;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = AppScope.of(context).recordUrl(person);
+    if (uri == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: OutlinedButton.icon(
+        icon: const Icon(Icons.open_in_new),
+        label: Text(context.tr('open_in_management')),
+        onPressed: () async {
+          final messenger = ScaffoldMessenger.of(context);
+          final text = context.tr('cannot_open_link');
+          var ok = false;
+          try {
+            ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } catch (_) {
+            ok = false;
+          }
+          if (!ok) messenger.showSnackBar(SnackBar(content: Text(text)));
+        },
+      ),
     );
   }
 }

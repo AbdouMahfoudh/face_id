@@ -269,6 +269,33 @@ class L10n {
       'الكاميرا غير متاحة ({code}).',
     ),
 
+    // School management system
+    'lookup_matricule': (
+      'Rechercher dans le système de gestion',
+      'البحث في نظام تسيير المدرسة',
+    ),
+    'lookup_hint': (
+      'Appuyez sur 🔍 pour remplir la fiche depuis le système de gestion',
+      'اضغط على 🔍 لملء البطاقة من نظام تسيير المدرسة',
+    ),
+    'lookup_enter_matricule': (
+      'Saisissez d’abord le matricule.',
+      'أدخل الرقم التسلسلي أولا.',
+    ),
+    'lookup_found': (
+      'Fiche remplie depuis le système de gestion.',
+      'تم ملء البطاقة من نظام التسيير.',
+    ),
+    'lookup_not_found': (
+      'Aucun élève avec le matricule « {m} » dans le système de gestion.',
+      'لا يوجد تلميذ بالرقم « {m} » في نظام التسيير.',
+    ),
+    'open_in_management': (
+      'Ouvrir dans la gestion de l’école',
+      'فتح في نظام تسيير المدرسة',
+    ),
+    'cannot_open_link': ('Impossible d’ouvrir le lien.', 'تعذر فتح الرابط.'),
+
     // Scan
     'from_gallery': ('Depuis la galerie', 'من المعرض'),
     'no_face': ('Aucun visage détecté', 'لم يتم اكتشاف أي وجه'),

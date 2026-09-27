@@ -260,6 +260,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             '${context.tr('device_id')} : ${state.deviceId}',
             style: text.bodySmall,
           ),
+          const SizedBox(height: 12),
+          const DeveloperCredit(),
         ],
       ),
     );

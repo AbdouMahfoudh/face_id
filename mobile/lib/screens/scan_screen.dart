@@ -318,6 +318,7 @@ class _MatchSheet extends StatelessWidget {
               person: person,
               showSensitive: state.canSeeSensitive,
             ),
+            ManagementLinkButton(person: person),
             if (!result.remote)
               OutlinedButton(
                 onPressed: () {

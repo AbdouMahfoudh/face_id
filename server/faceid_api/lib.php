@@ -51,7 +51,41 @@ function db(): PDO
     return $pdo;
 }
 
+const SCHEMA_VERSION = 2;
+
+/** Crée ou met à jour les tables ; ne fait rien si elles sont à jour. */
 function ensure_schema(PDO $db): void
+{
+    $db->exec('CREATE TABLE IF NOT EXISTS faceid_meta (
+        name VARCHAR(32) NOT NULL PRIMARY KEY,
+        value VARCHAR(255) NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $version = (int)$db->query("SELECT value FROM faceid_meta WHERE name = 'schema'")->fetchColumn();
+    if ($version >= SCHEMA_VERSION) return;
+
+    if ($version < 1) create_tables($db);
+    if ($version < 2) {
+        // Liaison avec le système de gestion de l'école.
+        add_column($db, 'faceid_schools', "mgmt_enabled TINYINT(1) NOT NULL DEFAULT 0");
+        add_column($db, 'faceid_schools', "mgmt_url VARCHAR(500) NOT NULL DEFAULT ''");
+        add_column($db, 'faceid_schools', "mgmt_key VARCHAR(255) NOT NULL DEFAULT ''");
+        add_column($db, 'faceid_schools', "mgmt_record_url VARCHAR(500) NOT NULL DEFAULT ''");
+    }
+    $db->prepare("REPLACE INTO faceid_meta (name, value) VALUES ('schema', ?)")
+        ->execute([(string)SCHEMA_VERSION]);
+}
+
+function add_column(PDO $db, string $table, string $definition): void
+{
+    try {
+        $db->exec("ALTER TABLE $table ADD COLUMN $definition");
+    } catch (PDOException $e) {
+        // 1060 : colonne déjà présente (mise à jour lancée deux fois).
+        if ((int)($e->errorInfo[1] ?? 0) !== 1060) throw $e;
+    }
+}
+
+function create_tables(PDO $db): void
 {
     // Tables de la première version (sans écoles) : données de test, supprimées.
     $db->exec('DROP TABLE IF EXISTS faceid_samples');
@@ -219,4 +253,105 @@ function person_fields(array $src): array
     if (!in_array($f['sex'], ['', 'M', 'F'], true)) throw new InputError('Sexe invalide.');
     if ($f['first_name'] === '' && $f['last_name'] === '') throw new InputError('Le nom est obligatoire.');
     return $f;
+}
+
+// ---------------------------------------------------------------- système de gestion
+
+/** Champs qu'un système de gestion peut renvoyer (contrat FaceID, cf. LISEZMOI). */
+const MGMT_FIELDS = [
+    'type' => 16, 'matricule' => 64, 'first_name' => 100, 'last_name' => 100, 'sex' => 1,
+    'birth_date' => 10, 'status' => 16, 'class_level' => 100, 'school_year' => 20,
+    'enrollment_date' => 10, 'job_title' => 100, 'parent_name' => 255, 'parent_phone' => 50,
+    'address' => 500, 'medical' => 5000, 'notes' => 5000,
+];
+const SENSITIVE_FIELDS = ['birth_date', 'parent_name', 'parent_phone', 'address', 'medical'];
+
+function is_http_url(string $url): bool
+{
+    return preg_match('#^https?://[^\s]+$#i', $url) === 1;
+}
+
+/** Adresse de la fiche dans le système de gestion ({matricule} est remplacé). */
+function mgmt_record_url(array $school, string $matricule): string
+{
+    $tpl = (string)($school['mgmt_record_url'] ?? '');
+    if ($tpl === '' || $matricule === '') return '';
+    return str_replace('{matricule}', rawurlencode($matricule), $tpl);
+}
+
+/**
+ * Cherche un élève par matricule dans le système de gestion de l'école.
+ * Renvoie ['found' => bool, 'fields' => [...], 'record_url' => string].
+ * Lève RuntimeException si le système est injoignable ou répond mal.
+ */
+function mgmt_lookup(array $school, string $matricule): array
+{
+    $url = (string)$school['mgmt_url'];
+    if (!is_http_url($url)) throw new RuntimeException("Adresse du système de gestion invalide.");
+    $url .= (strpos($url, '?') === false ? '?' : '&') . 'matricule=' . rawurlencode($matricule);
+    $headers = ['Accept: application/json', 'X-FaceID-Key: ' . $school['mgmt_key']];
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_FOLLOWLOCATION => false,
+        ]);
+        $body = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($body === false) throw new RuntimeException("Système de gestion injoignable ($err).");
+    } else {
+        $ctx = stream_context_create(['http' => [
+            'method' => 'GET', 'header' => implode("\r\n", $headers),
+            'timeout' => 10, 'ignore_errors' => true, 'follow_location' => 0,
+        ]]);
+        $body = @file_get_contents($url, false, $ctx);
+        if ($body === false) throw new RuntimeException('Système de gestion injoignable.');
+        $code = 200;
+        foreach ($http_response_header ?? [] as $h) {
+            if (preg_match('#^HTTP/\S+\s+(\d+)#', $h, $m)) $code = (int)$m[1];
+        }
+    }
+
+    $data = json_decode((string)$body, true);
+    if (!is_array($data)) {
+        throw new RuntimeException("Réponse invalide du système de gestion (HTTP $code).");
+    }
+    if (($data['ok'] ?? false) !== true) {
+        $msg = is_string($data['error'] ?? null) ? $data['error'] : "erreur HTTP $code";
+        throw new RuntimeException('Système de gestion : ' . substr($msg, 0, 200));
+    }
+    $student = $data['student'] ?? null;
+    if (($data['found'] ?? false) !== true || !is_array($student)) {
+        return ['found' => false, 'fields' => [], 'record_url' => ''];
+    }
+
+    // On ne garde que les champs connus et valides ; les autres sont ignorés.
+    $fields = [];
+    foreach (MGMT_FIELDS as $key => $max) {
+        $v = $student[$key] ?? null;
+        if (!is_string($v) && !is_int($v)) continue;
+        $v = trim((string)$v);
+        if ($v === '' || str_len($v) > $max) continue;
+        if (($key === 'birth_date' || $key === 'enrollment_date')) {
+            $d = DateTime::createFromFormat('!Y-m-d', $v);
+            if ($d === false || $d->format('Y-m-d') !== $v) continue;
+        }
+        if ($key === 'sex') {
+            $v = strtoupper($v);
+            if (!in_array($v, ['M', 'F'], true)) continue;
+        }
+        if ($key === 'type' && !in_array($v, PERSON_TYPES, true)) continue;
+        if ($key === 'status' && !in_array($v, PERSON_STATUSES, true)) continue;
+        $fields[$key] = $v;
+    }
+    $record = is_string($student['record_url'] ?? null) && is_http_url($student['record_url'])
+        ? $student['record_url']
+        : mgmt_record_url($school, $fields['matricule'] ?? $matricule);
+    return ['found' => true, 'fields' => $fields, 'record_url' => $record];
 }

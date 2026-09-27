@@ -12,6 +12,12 @@ class UserSession {
   final bool canDelete;
   final bool canSeeSensitive;
 
+  /// The school has a management system: matricule lookup is available.
+  final bool managementEnabled;
+
+  /// Link to a record in the management system; `{matricule}` is replaced.
+  final String recordUrlTemplate;
+
   const UserSession({
     required this.token,
     required this.userId,
@@ -24,6 +30,8 @@ class UserSession {
     required this.canEdit,
     required this.canDelete,
     required this.canSeeSensitive,
+    this.managementEnabled = false,
+    this.recordUrlTemplate = '',
   });
 
   bool get isAdmin => role == 'admin';
@@ -32,6 +40,7 @@ class UserSession {
   factory UserSession.fromUser(String token, Map<String, dynamic> u) {
     final school = u['school'] as Map<String, dynamic>;
     final perms = u['permissions'] as Map<String, dynamic>;
+    final mgmt = school['management'] as Map<String, dynamic>? ?? const {};
     final admin = u['role'] == 'admin';
     bool perm(String k) => admin || perms[k] == true;
     return UserSession(
@@ -46,6 +55,8 @@ class UserSession {
       canEdit: perm('edit'),
       canDelete: perm('delete'),
       canSeeSensitive: perm('sensitive'),
+      managementEnabled: mgmt['enabled'] == true,
+      recordUrlTemplate: (mgmt['record_url'] as String?) ?? '',
     );
   }
 
@@ -56,7 +67,14 @@ class UserSession {
       'username': username,
       'full_name': fullName,
       'role': role,
-      'school': {'id': schoolId, 'name': schoolName},
+      'school': {
+        'id': schoolId,
+        'name': schoolName,
+        'management': {
+          'enabled': managementEnabled,
+          'record_url': recordUrlTemplate,
+        },
+      },
       'permissions': {
         'scan': canScan,
         'edit': canEdit,

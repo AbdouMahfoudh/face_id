@@ -81,7 +81,15 @@ function user_json(array $u): array
         'username' => $u['username'],
         'full_name' => $u['full_name'],
         'role' => $u['role'],
-        'school' => ['id' => (int)$u['school_id'], 'name' => $u['school_name']],
+        'school' => [
+            'id' => (int)$u['school_id'],
+            'name' => $u['school_name'],
+            // Système de gestion de l'école (la clé reste sur le serveur).
+            'management' => [
+                'enabled' => (bool)$u['mgmt_enabled'] && $u['mgmt_url'] !== '',
+                'record_url' => (bool)$u['mgmt_enabled'] ? (string)$u['mgmt_record_url'] : '',
+            ],
+        ],
         'permissions' => [
             'scan' => (bool)$u['perm_scan'],
             'edit' => (bool)$u['perm_edit'],
@@ -99,7 +107,8 @@ function status_error(string $status): void
     if ($status !== 'active') fail("Votre compte est bloqué. Contactez l'administrateur.", 403, 'blocked');
 }
 
-const USER_SELECT = 'SELECT u.*, s.name AS school_name, s.active AS school_active
+const USER_SELECT = 'SELECT u.*, s.name AS school_name, s.active AS school_active,
+    s.mgmt_enabled, s.mgmt_url, s.mgmt_key, s.mgmt_record_url
     FROM faceid_users u JOIN faceid_schools s ON s.id = u.school_id';
 
 /** Utilisateur connecté (via son jeton), actif et dans une école active. */
@@ -279,6 +288,25 @@ switch ($req['action'] ?? '') {
             if (is_uuid($id)) $st->execute([$id, $u['school_id']]);
         }
         reply(['ok' => true]);
+
+    case 'lookup_student':
+        $u = current_user($db, $req);
+        require_perm($u, 'perm_edit');
+        if (!(int)$u['mgmt_enabled'] || $u['mgmt_url'] === '') {
+            fail("Aucun système de gestion n'est configuré pour cette école.");
+        }
+        $matricule = text_field($req, 'matricule', 64);
+        if ($matricule === '') fail('Saisissez un matricule.');
+        $school = [
+            'mgmt_url' => $u['mgmt_url'], 'mgmt_key' => $u['mgmt_key'],
+            'mgmt_record_url' => $u['mgmt_record_url'],
+        ];
+        $r = mgmt_lookup($school, $matricule);
+        if ($u['role'] !== 'admin' && !(int)$u['perm_sensitive']) {
+            foreach (SENSITIVE_FIELDS as $k) unset($r['fields'][$k]);
+        }
+        $r['fields'] = (object)$r['fields'];
+        reply(['ok' => true] + $r);
 
     case 'identify':
         $u = current_user($db, $req);

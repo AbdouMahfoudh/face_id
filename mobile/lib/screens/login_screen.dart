@@ -196,6 +196,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: const Icon(Icons.dns_outlined, size: 18),
                       label: Text(context.tr('server_settings')),
                     ),
+                    const SizedBox(height: 8),
+                    const DeveloperCredit(light: true),
                   ],
                 ),
               ),

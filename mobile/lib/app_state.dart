@@ -254,6 +254,30 @@ class AppState extends ChangeNotifier {
     if (_syncAgain && _status == ServerStatus.online) await sync();
   }
 
+  bool get managementEnabled => _session?.managementEnabled ?? false;
+
+  /// Looks a matricule up in the school's management system.
+  Future<StudentLookup> lookupStudent(String matricule) async {
+    try {
+      return await _api.lookupStudent(matricule.trim());
+    } on RemoteException catch (e) {
+      if (e.endsSession) await _handle(e);
+      rethrow;
+    }
+  }
+
+  /// Link to [person]'s record in the school's management system, if any.
+  Uri? recordUrl(Person person) {
+    final tpl = _session?.recordUrlTemplate ?? '';
+    if (tpl.isEmpty || person.matricule.isEmpty) return null;
+    final uri = Uri.tryParse(
+      tpl.replaceAll('{matricule}', Uri.encodeComponent(person.matricule)),
+    );
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https')
+        ? uri
+        : null;
+  }
+
   MatchResult identify(Float32List embedding, {String? excludePersonId}) =>
       FaceMatcher.match(
         embedding,

@@ -152,7 +152,7 @@ class Pill extends StatelessWidget {
   }
 }
 
-/// App logo: a face inside scanner corners.
+/// App logo (assets/branding/logo.png).
 class AppLogo extends StatelessWidget {
   const AppLogo({super.key, this.size = 72});
 
@@ -164,17 +164,44 @@ class AppLogo extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(size * 0.3),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.5),
-          width: 2,
+        borderRadius: BorderRadius.circular(size * 0.22),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.cyan.withValues(alpha: 0.45),
+            blurRadius: size * 0.3,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.22),
+        child: Image.asset(
+          'assets/branding/logo.png',
+          width: size,
+          height: size,
+          filterQuality: FilterQuality.medium,
         ),
       ),
-      child: Icon(
-        Icons.face_retouching_natural,
-        color: Colors.white,
-        size: size * 0.58,
+    );
+  }
+}
+
+/// "Développé par Abdou · 36629518".
+class DeveloperCredit extends StatelessWidget {
+  const DeveloperCredit({super.key, this.light = false});
+
+  final bool light;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Développé par Abdou · 36629518',
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+      style: TextStyle(
+        fontSize: 12,
+        color: light
+            ? Colors.white60
+            : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }

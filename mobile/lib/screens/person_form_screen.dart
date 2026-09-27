@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../app_state.dart';
 import '../models/person.dart';
 import '../services/matcher.dart';
+import '../services/remote_api.dart';
 import '../theme.dart';
 import '../widgets/person_widgets.dart';
 import 'enroll_screen.dart';
@@ -63,6 +64,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
   ];
   bool _analyzing = false;
   bool _saving = false;
+  bool _looking = false;
 
   List<TextEditingController> get _controllers => [
     _lastName,
@@ -153,6 +155,59 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
       ),
     );
     if (ok == true && mounted) setState(() => _slots.removeAt(index));
+  }
+
+  /// Fills the form from the school's management system.
+  Future<void> _lookup() async {
+    final matricule = _matricule.text.trim();
+    if (matricule.isEmpty) {
+      _message(context.tr('lookup_enter_matricule'));
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _looking = true);
+    try {
+      final r = await AppScope.read(context).lookupStudent(matricule);
+      if (!mounted) return;
+      if (!r.found) {
+        _message(context.tr('lookup_not_found', {'m': matricule}));
+        return;
+      }
+      setState(() => _apply(r.fields));
+      _message(context.tr('lookup_found'));
+    } on RemoteException catch (e) {
+      if (mounted) _message(e.message);
+    } finally {
+      if (mounted) setState(() => _looking = false);
+    }
+  }
+
+  /// The management system is the reference: its values replace what was
+  /// typed; fields it does not know are left untouched.
+  void _apply(Map<String, String> f) {
+    String? v(String k) => (f[k]?.trim().isEmpty ?? true) ? null : f[k]!.trim();
+    final controllers = {
+      'matricule': _matricule,
+      'last_name': _lastName,
+      'first_name': _firstName,
+      'class_level': _classLevel,
+      'school_year': _schoolYear,
+      'job_title': _jobTitle,
+      'parent_name': _parentName,
+      'parent_phone': _parentPhone,
+      'address': _address,
+      'medical': _medical,
+      'notes': _notes,
+    };
+    controllers.forEach((k, c) {
+      final value = v(k);
+      if (value != null) c.text = value;
+    });
+    if (personTypes.contains(v('type'))) _type = v('type')!;
+    if (personStatuses.contains(v('status'))) _status = v('status')!;
+    if (v('sex') == 'M' || v('sex') == 'F') _sex = v('sex')!;
+    _birthDate = v('birth_date') ?? _birthDate;
+    _enrollmentDate = v('enrollment_date') ?? _enrollmentDate;
   }
 
   Future<void> _pickDate(String current, ValueChanged<String> set) async {
@@ -388,6 +443,37 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
               ],
             ),
             const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TextField(
+                controller: _matricule,
+                textInputAction: TextInputAction.search,
+                onSubmitted: state.managementEnabled ? (_) => _lookup() : null,
+                decoration: InputDecoration(
+                  labelText: context.tr('matricule'),
+                  prefixIcon: const Icon(Icons.tag),
+                  helperText: state.managementEnabled
+                      ? context.tr('lookup_hint')
+                      : null,
+                  suffixIcon: !state.managementEnabled
+                      ? null
+                      : _looking
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          tooltip: context.tr('lookup_matricule'),
+                          icon: const Icon(Icons.manage_search),
+                          onPressed: busy ? null : _lookup,
+                        ),
+                ),
+              ),
+            ),
             field(
               _lastName,
               'last_name',
@@ -400,7 +486,6 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
               icon: Icons.person_outline,
               caps: TextCapitalization.words,
             ),
-            field(_matricule, 'matricule', icon: Icons.tag),
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: SegmentedButton<String>(

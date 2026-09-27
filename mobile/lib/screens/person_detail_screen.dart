@@ -146,6 +146,7 @@ class PersonDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                 ],
+                ManagementLinkButton(person: person),
                 PersonInfoSections(
                   person: person,
                   showSensitive: state.canSeeSensitive,

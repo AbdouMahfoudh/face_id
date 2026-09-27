@@ -169,6 +169,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([$name, $city, $active, $id]);
                 go("page=school&id=$id", 'École enregistrée.');
 
+            case 'mgmt_save':
+                $school = allowed_school($db, (int)($_POST['id'] ?? 0));
+                $url = trim((string)($_POST['mgmt_url'] ?? ''));
+                $record = trim((string)($_POST['mgmt_record_url'] ?? ''));
+                $key = trim((string)($_POST['mgmt_key'] ?? ''));
+                $enabled = isset($_POST['mgmt_enabled']) ? 1 : 0;
+                if ($url !== '' && !is_http_url($url)) throw new InputError("L'adresse de l'API doit commencer par http:// ou https://.");
+                if ($record !== '' && !is_http_url($record)) throw new InputError("L'adresse des fiches doit commencer par http:// ou https://.");
+                if ($enabled && $url === '') throw new InputError("Renseignez l'adresse de l'API avant d'activer.");
+                if (strlen($url) > 500 || strlen($record) > 500 || strlen($key) > 255) throw new InputError('Valeur trop longue.');
+                // Clé vide = on garde la clé déjà enregistrée.
+                $db->prepare('UPDATE faceid_schools SET mgmt_enabled = ?, mgmt_url = ?, mgmt_record_url = ?,
+                    mgmt_key = IF(? = \'\', mgmt_key, ?) WHERE id = ?')
+                    ->execute([$enabled, $url, $record, $key, $key, $school['id']]);
+                go('page=school&id=' . $school['id'], 'Système de gestion enregistré.');
+
+            case 'mgmt_test':
+                $school = allowed_school($db, (int)($_POST['id'] ?? 0));
+                $matricule = trim((string)($_POST['matricule'] ?? ''));
+                if ($matricule === '') throw new InputError('Saisissez un matricule à tester.');
+                if ($school['mgmt_url'] === '') throw new InputError("Enregistrez d'abord l'adresse de l'API.");
+                try {
+                    $r = mgmt_lookup($school, $matricule);
+                    $_SESSION['mgmt_test'] = ['ok' => true, 'matricule' => $matricule] + $r;
+                } catch (RuntimeException $e) {
+                    $_SESSION['mgmt_test'] = ['ok' => false, 'matricule' => $matricule, 'error' => $e->getMessage()];
+                }
+                go('page=school&id=' . $school['id']);
+
             case 'school_delete':
                 if (!is_super()) go('');
                 $id = (int)($_POST['id'] ?? 0);
@@ -415,6 +444,43 @@ if ($page === 'login') {
       </form>
     </div>
 
+    <?php $test = $_SESSION['mgmt_test'] ?? null; unset($_SESSION['mgmt_test']); ?>
+    <div class="card">
+      <h2>Système de gestion de l'école <?= $school['mgmt_enabled'] ? '<span class="badge b-active">Activé</span>' : '<span class="badge" style="background:#8A94B5">Désactivé</span>' ?></h2>
+      <p class="muted">Facultatif. Si l'école a un système de gestion, l'agent pourra saisir un matricule
+        dans l'application pour remplir la fiche automatiquement, et ouvrir la fiche de l'élève
+        dans ce système après la reconnaissance. Voir « Contrat système de gestion » dans LISEZMOI.md.</p>
+      <form method="post" class="grid"><?= csrf_field() ?>
+        <input type="hidden" name="action" value="mgmt_save"><input type="hidden" name="id" value="<?= (int)$school['id'] ?>">
+        <div style="grid-column:1/-1"><label>Adresse de l'API (recherche par matricule)</label>
+          <input name="mgmt_url" value="<?= h($school['mgmt_url']) ?>" placeholder="https://gestion.mon-ecole.com/custom/ecole/faceid_eleve.php"></div>
+        <div style="grid-column:1/-1"><label>Adresse d'une fiche élève — <code>{matricule}</code> sera remplacé</label>
+          <input name="mgmt_record_url" value="<?= h($school['mgmt_record_url']) ?>" placeholder="https://gestion.mon-ecole.com/custom/ecole/eleve.php?ref={matricule}"></div>
+        <div><label>Clé d'accès <?= $school['mgmt_key'] !== '' ? '(enregistrée — laisser vide pour la garder)' : '' ?></label>
+          <input name="mgmt_key" type="password" autocomplete="new-password" placeholder="<?= $school['mgmt_key'] !== '' ? '••••••••' : '' ?>"></div>
+        <div class="perms" style="align-self:end"><label><input type="checkbox" name="mgmt_enabled" <?= $school['mgmt_enabled'] ? 'checked' : '' ?>> Activer la liaison</label></div>
+        <div style="align-self:end"><button class="btn-night">Enregistrer</button></div>
+      </form>
+      <h3>Tester</h3>
+      <form method="post" class="row"><?= csrf_field() ?>
+        <input type="hidden" name="action" value="mgmt_test"><input type="hidden" name="id" value="<?= (int)$school['id'] ?>">
+        <input name="matricule" placeholder="Matricule d'un élève" style="max-width:240px" value="<?= h($test['matricule'] ?? '') ?>">
+        <button class="btn-ghost">Tester la recherche</button>
+      </form>
+      <?php if ($test): ?>
+        <?php if (!$test['ok']): ?>
+          <div class="error" style="margin-top:12px"><?= h($test['error']) ?></div>
+        <?php elseif (!$test['found']): ?>
+          <div class="error" style="margin-top:12px">Connexion réussie, mais aucun élève avec le matricule « <?= h($test['matricule']) ?> ».</div>
+        <?php else: ?>
+          <div class="flash" style="margin-top:12px">Élève trouvé :
+            <?php foreach ($test['fields'] as $k => $v): ?><br><strong><?= h($k) ?></strong> : <?= h($v) ?><?php endforeach; ?>
+            <?php if ($test['record_url'] !== ''): ?><br><a href="<?= h($test['record_url']) ?>" target="_blank" rel="noopener">Ouvrir la fiche</a><?php endif; ?>
+          </div>
+        <?php endif; ?>
+      <?php endif; ?>
+    </div>
+
     <div class="card">
       <h2>Comptes de l'école</h2>
       <p class="muted">Les agents créent leur compte dans l'application : il apparaît ici « En attente ».
@@ -606,6 +672,7 @@ if ($page === 'login') {
     go('');
 }
 ?>
+<p class="muted" style="text-align:center;margin:28px 0">Développé par Abdou · 36629518</p>
 </main>
 </body>
 </html>
