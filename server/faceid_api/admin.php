@@ -6,6 +6,16 @@ declare(strict_types=1);
 
 require __DIR__ . '/lib.php';
 
+set_exception_handler(function (Throwable $e): void {
+    error_log('faceid_admin: ' . $e->getMessage());
+    http_response_code(500);
+    $msg = $e instanceof RuntimeException ? $e->getMessage() : 'Erreur interne du serveur.';
+    echo '<!doctype html><meta charset="utf-8"><title>Erreur</title>'
+        . '<div style="font-family:system-ui;max-width:640px;margin:60px auto;padding:20px;'
+        . 'border-radius:14px;background:#FDECEC;color:#8E1F1F">'
+        . '<h2 style="margin-top:0">FaceID École — erreur</h2><p>' . h($msg) . '</p></div>';
+});
+
 session_name('faceid_admin');
 session_set_cookie_params(['httponly' => true, 'samesite' => 'Strict']);
 session_start();

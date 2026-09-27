@@ -2,6 +2,10 @@
 // Fonctions communes à api.php et admin.php.
 declare(strict_types=1);
 
+// Ne jamais afficher les erreurs PHP : elles peuvent contenir des mots de passe.
+ini_set('display_errors', '0');
+ini_set('zend.exception_ignore_args', '1');
+
 require __DIR__ . '/config.php';
 
 const PERSON_TYPES = ['eleve', 'enseignant', 'personnel', 'surveillant', 'autre'];
@@ -20,7 +24,8 @@ function db(): PDO
 {
     static $pdo = null;
     if ($pdo === null) {
-        $pdo = new PDO(
+        try {
+            $pdo = new PDO(
             'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=utf8mb4',
             DB_USER,
             DB_PASS,
@@ -29,7 +34,14 @@ function db(): PDO
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]
-        );
+            );
+        } catch (PDOException $e) {
+            // Message sans les identifiants (l'exception d'origine les contient).
+            throw new RuntimeException(
+                'Connexion à MySQL impossible (erreur ' . $e->getCode() . '). '
+                . 'Vérifiez DB_HOST, DB_PORT, DB_USER et DB_PASS dans config.php.'
+            );
+        }
         ensure_schema($pdo);
     }
     return $pdo;

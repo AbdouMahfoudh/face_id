@@ -28,8 +28,8 @@ function fail(string $message, int $code = 400, string $reason = ''): void
 
 set_exception_handler(function (Throwable $e): void {
     if ($e instanceof InputError) fail($e->getMessage());
-    error_log('faceid_api: ' . $e);
-    fail('Erreur interne du serveur.', 500);
+    error_log('faceid_api: ' . $e->getMessage());
+    fail($e instanceof RuntimeException ? $e->getMessage() : 'Erreur interne du serveur.', 500);
 });
 
 function text_field(array $src, string $key, int $max): string
