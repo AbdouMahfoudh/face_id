@@ -8,9 +8,7 @@ class FaceGuide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: CustomPaint(painter: _GuidePainter(color)),
-    );
+    return IgnorePointer(child: CustomPaint(painter: _GuidePainter(color)));
   }
 }
 
@@ -31,7 +29,10 @@ class _GuidePainter extends CustomPainter {
       ..fillType = PathFillType.evenOdd
       ..addRect(Offset.zero & size)
       ..addOval(rect);
-    canvas.drawPath(shade, Paint()..color = Colors.black.withValues(alpha: 0.35));
+    canvas.drawPath(
+      shade,
+      Paint()..color = Colors.black.withValues(alpha: 0.35),
+    );
     canvas.drawOval(
       rect,
       Paint()

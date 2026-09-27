@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../theme.dart';
+import '../widgets/person_widgets.dart';
 import 'person_form_screen.dart';
 
 class PersonDetailScreen extends StatelessWidget {
@@ -13,32 +15,29 @@ class PersonDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
-    final matches = state.people.where((p) => p.id == personId);
-    if (matches.isEmpty) {
+    final person = state.people.where((p) => p.id == personId).firstOrNull;
+    if (person == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: Text('Cette personne a été supprimée.')),
+        body: Center(child: Text(context.tr('person_deleted'))),
       );
     }
-    final person = matches.first;
-    final text = Theme.of(context).textTheme;
 
     Future<void> confirmDelete() async {
       final ok = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-          title: Text('Supprimer ${person.name} ?'),
-          content: const Text(
-            'Sa fiche et ses photos seront effacées définitivement.',
-          ),
+          title: Text(c.tr('delete_person_title', {'name': person.name})),
+          content: Text(c.tr('delete_person_info')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: const Text('Annuler'),
+              child: Text(c.tr('cancel')),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
               onPressed: () => Navigator.pop(c, true),
-              child: const Text('Supprimer'),
+              child: Text(c.tr('delete')),
             ),
           ],
         ),
@@ -49,84 +48,134 @@ class PersonDetailScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(person.name),
-        actions: [
-          IconButton(
-            tooltip: 'Modifier',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PersonFormScreen(existing: person),
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Supprimer',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: confirmDelete,
-          ),
-        ],
-      ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.zero,
         children: [
-          SizedBox(
-            height: 140,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: person.samples.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.file(
-                  File(person.samples[i].photoPath),
-                  width: 140,
-                  height: 140,
-                  fit: BoxFit.cover,
+          GradientHeader(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 24),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const BackButton(color: Colors.white),
+                    const Spacer(),
+                    if (state.canEdit)
+                      IconButton(
+                        tooltip: context.tr('edit'),
+                        color: Colors.white,
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PersonFormScreen(existing: person),
+                          ),
+                        ),
+                      ),
+                    if (state.canDelete)
+                      IconButton(
+                        tooltip: context.tr('delete'),
+                        color: Colors.white,
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: confirmDelete,
+                      ),
+                  ],
                 ),
-              ),
+                Hero(
+                  tag: 'avatar-${person.id}',
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: PersonAvatar(person: person, radius: 56),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  person.name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    Pill(
+                      context.tr('type_${person.type}'),
+                      color: Colors.white,
+                    ),
+                    if (person.subtitle.isNotEmpty)
+                      Pill(person.subtitle, color: Colors.white),
+                    Pill(
+                      context.tr('status_${person.status}'),
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-          Text(person.name, style: text.headlineSmall),
-          if (person.role.isNotEmpty)
-            Text(person.role, style: text.titleMedium),
-          const SizedBox(height: 16),
-          if (person.description.isNotEmpty) ...[
-            Text('Description', style: text.labelLarge),
-            const SizedBox(height: 4),
-            Text(person.description),
-            const SizedBox(height: 16),
-          ],
-          Text(
-            'Ajouté le ${_date(person.createdAt)} · modifié le ${_date(person.updatedAt)}',
-            style: text.bodySmall,
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(
-                person.synced
-                    ? Icons.cloud_done_outlined
-                    : Icons.cloud_upload_outlined,
-                size: 16,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                person.synced
-                    ? 'Envoyé au serveur'
-                    : 'En attente d’envoi au serveur',
-                style: text.bodySmall,
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (person.samples.length > 1) ...[
+                  SizedBox(
+                    height: 76,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: person.samples.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) => ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.file(
+                          File(person.samples[i].photoPath),
+                          width: 76,
+                          height: 76,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                PersonInfoSections(
+                  person: person,
+                  showSensitive: state.canSeeSensitive,
+                ),
+                Row(
+                  children: [
+                    Icon(
+                      person.synced
+                          ? Icons.cloud_done_outlined
+                          : Icons.cloud_upload_outlined,
+                      size: 16,
+                      color: person.synced
+                          ? AppColors.success
+                          : AppColors.warning,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${context.tr(person.synced ? 'synced' : 'not_synced')} · '
+                        '${context.tr('updated_on')} ${formatDate(person.updatedAt.toIso8601String().substring(0, 10))}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
-
-  static String _date(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }

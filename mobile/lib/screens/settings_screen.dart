@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../services/remote_api.dart';
+import '../theme.dart';
+import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,115 +15,173 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late final AppState _state = AppScope.read(context);
   late final _url = TextEditingController(text: _state.serverUrl);
-  late final _key = TextEditingController(text: _state.apiKey);
-  bool _hideKey = true;
   bool _testing = false;
 
   @override
   void dispose() {
     _url.dispose();
-    _key.dispose();
     super.dispose();
   }
 
   void _message(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
-  Future<void> _saveAndTest() async {
+  Future<void> _saveServer() async {
     FocusScope.of(context).unfocus();
-    await _state.saveServerSettings(_url.text, _key.text);
-    if (!_state.serverConfigured) {
-      _message('Réglages enregistrés : mode hors ligne uniquement.');
-      return;
-    }
+    await _state.setServerUrl(_url.text);
     setState(() => _testing = true);
     try {
-      final count = await _state.testServer();
-      _message('Connexion réussie : $count personne(s) dans la base en ligne.');
+      await _state.testServer();
+      if (mounted) _message(context.tr('connection_ok'));
+      await _state.checkAccount();
       await _state.sync();
     } on RemoteException catch (e) {
-      _message('Échec : ${e.message}');
+      if (mounted) _message(e.message);
     } finally {
       if (mounted) setState(() => _testing = false);
     }
   }
 
+  Future<void> _logout() async {
+    final state = _state;
+    final pending = state.pendingCount;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(c.tr('logout')),
+        content: Text(
+          pending > 0
+              ? c.tr('logout_pending_warning', {'n': pending})
+              : c.tr('logout_confirm'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: Text(c.tr('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: Text(c.tr('logout')),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await state.logout();
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
+    final s = state.session;
     final text = Theme.of(context).textTheme;
+    if (s == null) return const Scaffold();
+
+    Widget perm(bool on, String key) => ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        on ? Icons.check_circle : Icons.cancel_outlined,
+        color: on ? AppColors.success : Colors.grey,
+      ),
+      title: Text(context.tr(key)),
+    );
+
     final (
       IconData icon,
       Color color,
       String label,
     ) = switch (state.serverStatus) {
-      ServerStatus.notConfigured => (
-        Icons.cloud_off_outlined,
-        Colors.grey,
-        'Serveur non configuré',
-      ),
       ServerStatus.unknown => (
         Icons.cloud_queue,
         Colors.grey,
-        'Connexion non vérifiée',
+        context.tr('connecting'),
       ),
-      ServerStatus.online => (Icons.cloud_done, Colors.green, 'Connecté'),
-      ServerStatus.offline => (Icons.cloud_off, Colors.orange, 'Hors ligne'),
+      ServerStatus.online => (
+        Icons.cloud_done,
+        AppColors.success,
+        context.tr('online'),
+      ),
+      ServerStatus.offline => (
+        Icons.cloud_off,
+        AppColors.warning,
+        context.tr('offline'),
+      ),
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Réglages')),
+      appBar: AppBar(title: Text(context.tr('settings'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Serveur en ligne', style: text.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Sans serveur, l’application fonctionne uniquement avec les '
-            'personnes enregistrées sur ce téléphone.',
-            style: text.bodySmall,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _url,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            decoration: const InputDecoration(
-              labelText: 'Adresse du serveur',
-              hintText: 'http://102.214.210.18/faceid_api',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _key,
-            obscureText: _hideKey,
-            autocorrect: false,
-            decoration: InputDecoration(
-              labelText: 'Code d’accès (API_KEY)',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: Icon(_hideKey ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _hideKey = !_hideKey),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 26,
+                        backgroundColor: AppColors.teal.withValues(alpha: 0.15),
+                        child: Text(
+                          s.fullName.isEmpty
+                              ? '?'
+                              : s.fullName[0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.teal,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(s.fullName, style: text.titleMedium),
+                            Text(
+                              '@${s.username} · ${s.schoolName}',
+                              style: text.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Pill(
+                        context.tr(s.isAdmin ? 'role_admin' : 'role_agent'),
+                        color: AppColors.night,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(context.tr('my_permissions'), style: text.labelLarge),
+                  perm(s.canScan, 'perm_scan'),
+                  perm(s.canEdit, 'perm_edit'),
+                  perm(s.canDelete, 'perm_delete'),
+                  perm(s.canSeeSensitive, 'perm_sensitive'),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _testing ? null : _saveAndTest,
-            icon: _testing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save_outlined),
-            label: const Text('Enregistrer et tester'),
-          ),
-          const SizedBox(height: 28),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(context.tr('language'), style: text.titleSmall),
+                  const SizedBox(height: 10),
+                  const LanguageSwitch(),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -132,26 +192,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Text(label, style: text.titleSmall),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     state.pendingCount == 0
-                        ? 'Toutes les fiches sont envoyées au serveur.'
-                        : '${state.pendingCount} modification(s) en attente d’envoi.',
+                        ? context.tr('all_synced')
+                        : context.tr('pending_changes', {
+                            'n': state.pendingCount,
+                          }),
                   ),
                   if (state.lastSyncError != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       state.lastSyncError!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                      style: const TextStyle(color: AppColors.danger),
                     ),
                   ],
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
-                    onPressed: !state.serverConfigured || state.syncing
-                        ? null
-                        : state.sync,
+                    onPressed: state.syncing ? null : state.sync,
                     icon: state.syncing
                         ? const SizedBox(
                             width: 18,
@@ -159,15 +217,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.sync),
-                    label: const Text('Synchroniser maintenant'),
+                    label: Text(context.tr('sync_now')),
+                  ),
+                  const SizedBox(height: 18),
+                  TextField(
+                    controller: _url,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    decoration: InputDecoration(
+                      labelText: context.tr('server_address'),
+                      hintText: defaultServerUrl,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: _testing ? null : _saveServer,
+                    icon: _testing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: Text(context.tr('save_and_test')),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 16),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
+            onPressed: _logout,
+            icon: const Icon(Icons.logout),
+            label: Text(context.tr('logout')),
+          ),
+          const SizedBox(height: 16),
           Text(
-            'Identifiant de cet appareil : ${state.deviceId}',
+            '${context.tr('device_id')} : ${state.deviceId}',
             style: text.bodySmall,
           ),
         ],

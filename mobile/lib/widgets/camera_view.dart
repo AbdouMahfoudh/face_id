@@ -1,6 +1,8 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
+import '../app_state.dart';
+
 /// Live camera preview; call [CameraViewState.capture] to take a photo.
 class CameraView extends StatefulWidget {
   const CameraView({
@@ -20,7 +22,10 @@ class CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   List<CameraDescription> _cameras = [];
   CameraController? _controller;
   int _index = 0;
+
+  /// Translation key of the camera error, if any.
   String? _error;
+  String _errorCode = '';
 
   bool get ready => _controller?.value.isInitialized ?? false;
   bool get canSwitch => _cameras.length > 1;
@@ -36,7 +41,7 @@ class CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     try {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
-        setState(() => _error = 'Aucune caméra disponible.');
+        setState(() => _error = 'camera_none');
         return;
       }
       final wanted = widget.preferFront
@@ -78,9 +83,10 @@ class CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   String _describe(CameraException e) {
     if (e.code.contains('AccessDenied') || e.code.contains('Permission')) {
-      return "Accès à la caméra refusé.\nAutorisez-le dans les paramètres du téléphone.";
+      return 'camera_denied';
     }
-    return 'Caméra indisponible (${e.code}).';
+    _errorCode = e.code;
+    return 'camera_unavailable';
   }
 
   Future<void> switchCamera() async {
@@ -126,7 +132,7 @@ class CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         alignment: Alignment.center,
         padding: const EdgeInsets.all(24),
         child: Text(
-          _error!,
+          context.tr(_error!, {'code': _errorCode}),
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.white70),
         ),

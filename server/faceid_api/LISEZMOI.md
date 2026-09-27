@@ -1,49 +1,54 @@
 # Serveur FaceID École (PHP + MySQL)
 
-Ce dossier permet à l'application de :
-- envoyer les personnes enregistrées sur chaque téléphone vers la base en ligne ;
-- comparer un visage scanné avec **toute** la base en ligne quand Internet est disponible.
+Ce dossier contient :
+- `api.php` : l'API utilisée par l'application (comptes, fiches, reconnaissance) ;
+- `admin.php` : la page web d'administration (écoles, comptes, élèves) ;
+- `lib.php` : fonctions communes ;
+- `config.php` : vos réglages (mots de passe) ;
+- `.htaccess` : bloque l'accès direct à `config.php`, `lib.php` et ce fichier.
 
-Le téléphone calcule l'« empreinte » du visage (192 nombres). Le PHP compare
-seulement ces nombres : aucune bibliothèque spéciale n'est nécessaire.
+## Installation / mise à jour
 
-## Installation
-
-1. Copiez le dossier `faceid_api` sur votre serveur web, par exemple dans
-   `htdocs/faceid_api` (XAMPP) ou `/var/www/html/faceid_api` (Apache).
+1. Copiez tous les fichiers du dossier sur le serveur, à la même place qu'avant
+   (par ex. `dolibarr/faceid_api`). Remplacez les anciens fichiers.
 2. Ouvrez `config.php` **sur le serveur** et remplissez :
-   - `DB_HOST` : `127.0.0.1` si MySQL est sur la même machine que PHP ;
-   - `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` : vos identifiants MySQL ;
-   - `API_KEY` : un code secret long que vous choisissez.
+   - `DB_PASS` : le mot de passe MySQL ;
+   - `ADMIN_PASSWORD` : le mot de passe du super-administrateur de la page web
+     (identifiant : `ADMIN_USER`, par défaut `superadmin`).
 
-   ⚠️ Ne mettez jamais le vrai mot de passe dans GitHub : le dépôt est public.
-3. Les tables `faceid_persons` et `faceid_samples` sont créées automatiquement
-   au premier appel.
-4. Dans l'application : **Réglages** (icône en haut à droite de l'accueil)
-   - Adresse du serveur : `http://102.214.210.18/faceid_api`
-   - Code d'accès : la valeur de `API_KEY`
-   - Appuyez sur **Enregistrer et tester**.
+   ⚠️ Ne mettez jamais ces mots de passe dans GitHub : le dépôt est public.
+3. Les tables sont créées automatiquement. Les anciennes tables de test
+   (`faceid_persons`, `faceid_samples`) sont supprimées.
 
-## Vérifier depuis un navigateur
+## Utilisation
 
-Ouvrir `http://102.214.210.18/faceid_api/api.php` doit afficher :
+1. Ouvrez `http://102.214.210.18:81/dolibarr/faceid_api/admin.php` et
+   connectez-vous en super-administrateur.
+2. Créez une école, puis, dans l'école, un compte **Administrateur de l'école**
+   (le directeur). Il pourra se connecter à la même page web et ne verra que
+   son école.
+3. Les agents créent leur compte dans l'application (« Créer un compte ») en
+   choisissant leur école. Le compte apparaît « En attente » sur la page web.
+4. L'administrateur clique **Autoriser** et coche les permissions :
+   - Scanner / reconnaître ;
+   - Ajouter et modifier des fiches ;
+   - Supprimer des fiches ;
+   - Voir les données sensibles (santé, parents).
+5. **Bloquer** déconnecte immédiatement le téléphone de l'agent.
 
-```json
-{"ok":false,"error":"Utilisez POST."}
-```
-
-Cela prouve que PHP fonctionne. Si le navigateur télécharge le fichier ou
-affiche le code source, PHP n'est pas activé sur ce dossier.
+L'onglet « Élèves et personnel » permet de voir, modifier et supprimer les
+fiches. L'ajout se fait dans l'application, car il faut enregistrer le visage.
 
 ## Sécurité
 
-- Le mot de passe MySQL reste sur le serveur ; l'application ne le connaît pas.
-- Chaque téléphone ne peut modifier ou supprimer que les fiches qu'il a créées.
-- Le fichier `.htaccess` (Apache) bloque l'accès direct à `config.php`.
-  Avec Nginx, ajoutez une règle équivalente.
+- Les mots de passe des comptes sont chiffrés (`password_hash`).
+- Chaque école ne voit que ses propres fiches, y compris pendant la
+  reconnaissance.
+- Nom et photo ne sont renvoyés que si la ressemblance est suffisante.
+- 8 mauvais mots de passe en 15 minutes bloquent temporairement la connexion.
 - Il est conseillé de fermer le port MySQL (3307) à Internet et de passer en
   HTTPS si possible.
 
 ## Prérequis
 
-PHP 7.1 ou plus récent avec l’extension `pdo_mysql`, MySQL 5.7+ ou MariaDB 10.2+.
+PHP 7.3 ou plus récent avec l’extension `pdo_mysql`, MySQL 5.7+ ou MariaDB 10.2+.

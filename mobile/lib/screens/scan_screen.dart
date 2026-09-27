@@ -1,13 +1,13 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../app_state.dart';
 import '../services/matcher.dart';
 import '../services/remote_api.dart';
+import '../theme.dart';
 import '../widgets/camera_view.dart';
 import '../widgets/face_guide.dart';
+import '../widgets/person_widgets.dart';
 import 'person_detail_screen.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -48,18 +48,14 @@ class _ScanScreenState extends State<ScanScreen> {
       final embedding = analysis.embedding!;
       var result = state.identify(embedding);
       String? note;
-      if (state.serverConfigured) {
-        try {
-          final online = await state.identifyOnline(embedding);
-          final isLocal = state.people.any((p) => p.id == online?.person?.id);
-          if (online != null && !isLocal && online.score > result.score) {
-            result = online;
-          }
-        } on RemoteException {
-          note = 'Hors ligne : comparaison avec ce téléphone uniquement.';
-        }
+      try {
+        final online = await state.identifyOnline(embedding);
+        final isLocal = state.people.any((p) => p.id == online.person?.id);
+        if (!isLocal && online.score > result.score) result = online;
+      } on RemoteException {
+        note = 'offline_scan_note';
       }
-      if (!mounted) return;
+      if (!mounted || state.session == null) return;
       await _showSheet(
         _MatchSheet(
           result: result,
@@ -69,8 +65,9 @@ class _ScanScreenState extends State<ScanScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erreur : $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('${context.tr('error')} : $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -81,22 +78,32 @@ class _ScanScreenState extends State<ScanScreen> {
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => SafeArea(child: child),
+    builder: (_) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: SingleChildScrollView(child: child),
+      ),
+    ),
   );
 
   @override
   Widget build(BuildContext context) {
-    final state = AppScope.of(context);
-    final empty = state.people.isEmpty && !state.serverConfigured;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Scanner un visage'),
+        title: Text(context.tr('scan_face')),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+        ),
         actions: [
           IconButton(
-            tooltip: 'Changer de caméra',
+            tooltip: context.tr('switch_camera'),
             icon: const Icon(Icons.cameraswitch_outlined),
             onPressed: () => _camera.currentState?.switchCamera(),
           ),
@@ -106,22 +113,7 @@ class _ScanScreenState extends State<ScanScreen> {
         fit: StackFit.expand,
         children: [
           CameraView(key: _camera),
-          const FaceGuide(),
-          if (empty)
-            const Positioned(
-              top: 16,
-              left: 16,
-              right: 16,
-              child: Card(
-                child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text(
-                    "La base est vide : ajoutez d'abord des personnes, sinon tout visage sera « Inconnu ».",
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            ),
+          const FaceGuide(color: AppColors.cyan),
           Positioned(
             left: 24,
             right: 24,
@@ -130,17 +122,24 @@ class _ScanScreenState extends State<ScanScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton.filledTonal(
-                  tooltip: 'Depuis la galerie',
+                  tooltip: context.tr('from_gallery'),
                   iconSize: 28,
                   onPressed: _busy ? null : _scanFromGallery,
                   icon: const Icon(Icons.photo_library_outlined),
                 ),
-                FloatingActionButton.large(
-                  heroTag: 'scan',
-                  onPressed: _busy ? null : _scanFromCamera,
-                  child: _busy
-                      ? const CircularProgressIndicator()
-                      : const Icon(Icons.face_retouching_natural, size: 40),
+                SizedBox(
+                  width: 88,
+                  height: 88,
+                  child: FloatingActionButton.large(
+                    heroTag: 'scan',
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                    shape: const CircleBorder(),
+                    onPressed: _busy ? null : _scanFromCamera,
+                    child: _busy
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Icon(Icons.face_retouching_natural, size: 42),
+                  ),
                 ),
                 const SizedBox(width: 56),
               ],
@@ -157,22 +156,19 @@ class _NoFaceResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(24, 0, 24, 32),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.no_photography_outlined, size: 56),
-          SizedBox(height: 12),
+          const Icon(Icons.no_photography_outlined, size: 56),
+          const SizedBox(height: 12),
           Text(
-            'Aucun visage détecté',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            context.tr('no_face'),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          SizedBox(height: 8),
-          Text(
-            'Placez le visage de face, bien éclairé, dans le cadre.',
-            textAlign: TextAlign.center,
-          ),
+          const SizedBox(height: 8),
+          Text(context.tr('no_face_tip'), textAlign: TextAlign.center),
         ],
       ),
     );
@@ -192,71 +188,87 @@ class _MatchSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final state = AppScope.of(context);
     final person = result.person;
     final percent = '${(result.score.clamp(0, 1) * 100).round()} %';
 
     final (Color color, IconData icon, String title) = switch (result.status) {
       MatchStatus.recognized => (
-        Colors.green,
+        AppColors.success,
         Icons.verified,
-        'Personne reconnue',
+        context.tr('recognized'),
       ),
       MatchStatus.uncertain => (
-        Colors.orange,
+        AppColors.warning,
         Icons.help_outline,
-        'À vérifier',
+        context.tr('to_check'),
       ),
-      MatchStatus.unknown => (scheme.error, Icons.person_off, 'INCONNU'),
+      MatchStatus.unknown => (
+        AppColors.danger,
+        Icons.person_off,
+        context.tr('unknown'),
+      ),
     };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 32),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.6, end: 1),
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.elasticOut,
+            builder: (_, v, child) => Transform.scale(scale: v, child: child),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(18),
               ),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: color, size: 30),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           if (person == null)
-            const Text(
-              "Ce visage ne correspond à aucune personne enregistrée.",
-              textAlign: TextAlign.center,
-            )
+            Text(context.tr('unknown_info'), textAlign: TextAlign.center)
           else ...[
             if (result.status == MatchStatus.uncertain)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'Ressemblance partielle. Vérifiez l’identité avant de conclure.',
+                  context.tr('uncertain_info'),
                   textAlign: TextAlign.center,
                 ),
               ),
             Row(
               children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundImage: result.remote
-                      ? (result.remotePhoto == null
-                            ? null
-                            : MemoryImage(result.remotePhoto!))
-                      : (person.coverPhoto == null
-                            ? null
-                            : FileImage(File(person.coverPhoto!))),
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  child: PersonAvatar(
+                    person: result.remote ? null : person,
+                    photo: result.remotePhoto,
+                    radius: 44,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -265,33 +277,48 @@ class _MatchSheet extends StatelessWidget {
                     children: [
                       Text(
                         person.name,
-                        style: Theme.of(context).textTheme.titleLarge,
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                      if (person.role.isNotEmpty) Text(person.role),
                       Text(
-                        'Similarité : $percent',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        [
+                          context.tr('type_${person.type}'),
+                          if (person.subtitle.isNotEmpty) person.subtitle,
+                        ].join(' · '),
                       ),
-                      if (result.remote)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Chip(
-                            avatar: Icon(Icons.cloud_outlined, size: 18),
-                            label: Text('Base en ligne'),
-                            visualDensity: VisualDensity.compact,
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Pill(
+                            '${context.tr('similarity')} $percent',
+                            color: color,
                           ),
-                        ),
+                          if (person.status != 'actif')
+                            Pill(
+                              context.tr('status_${person.status}'),
+                              color: statusColor(person.status),
+                            ),
+                          if (result.remote)
+                            Pill(
+                              context.tr('online_base'),
+                              color: AppColors.night,
+                              icon: Icons.cloud_outlined,
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-            if (person.description.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(person.description),
-            ],
-            if (!result.remote) ...[
-              const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            PersonInfoSections(
+              person: person,
+              showSensitive: state.canSeeSensitive,
+            ),
+            if (!result.remote)
               OutlinedButton(
                 onPressed: () {
                   final nav = Navigator.of(context);
@@ -302,14 +329,13 @@ class _MatchSheet extends StatelessWidget {
                     ),
                   );
                 },
-                child: const Text('Voir la fiche complète'),
+                child: Text(context.tr('open_record')),
               ),
-            ],
           ],
           if (note != null) ...[
             const SizedBox(height: 12),
             Text(
-              note!,
+              context.tr(note!),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -317,7 +343,7 @@ class _MatchSheet extends StatelessWidget {
           if (otherFaces > 0) ...[
             const SizedBox(height: 12),
             Text(
-              '$otherFaces autre(s) visage(s) sur la photo : seul le plus grand a été analysé.',
+              context.tr('other_faces', {'n': otherFaces}),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

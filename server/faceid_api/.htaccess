@@ -2,9 +2,6 @@
 DirectoryIndex api.php
 
 # Fichiers qui ne doivent jamais être lisibles depuis Internet.
-<Files "config.php">
+<FilesMatch "^(config\.php|lib\.php|LISEZMOI\.md)$">
     Require all denied
-</Files>
-<Files "LISEZMOI.md">
-    Require all denied
-</Files>
+</FilesMatch>

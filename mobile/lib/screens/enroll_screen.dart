@@ -7,17 +7,19 @@ import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../services/face_service.dart';
 import '../widgets/camera_view.dart';
+import '../theme.dart';
 import '../widgets/face_guide.dart';
 
 enum Pose {
-  front('Regardez droit devant', Icons.face),
-  left('Tournez lentement la tête à gauche', Icons.arrow_back),
-  right('Tournez lentement la tête à droite', Icons.arrow_forward),
-  up('Levez légèrement la tête', Icons.arrow_upward),
-  down('Baissez légèrement la tête', Icons.arrow_downward);
+  front('pose_front', Icons.face),
+  left('pose_left', Icons.west),
+  right('pose_right', Icons.east),
+  up('pose_up', Icons.north),
+  down('pose_down', Icons.south);
 
   const Pose(this.instruction, this.icon);
 
+  /// Translation key of the instruction.
   final String instruction;
   final IconData icon;
 
@@ -96,11 +98,11 @@ class _EnrollScreenState extends State<EnrollScreen> {
 
   void _handle(FaceAnalysis a) {
     if (a.faceCount == 0) {
-      setState(() => _hint = 'Placez votre visage dans le cadre');
+      setState(() => _hint = 'hint_place_face');
       return;
     }
     if (a.faceCount > 1) {
-      setState(() => _hint = 'Une seule personne devant la caméra');
+      setState(() => _hint = 'hint_one_person');
       return;
     }
     final pose = Pose.of(a.yaw, a.pitch);
@@ -136,12 +138,12 @@ class _EnrollScreenState extends State<EnrollScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Enregistrement du visage'),
+        title: Text(context.tr('enroll_title')),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            tooltip: 'Changer de caméra',
+            tooltip: context.tr('switch_camera'),
             icon: const Icon(Icons.cameraswitch_outlined),
             onPressed: () => _camera.currentState?.switchCamera(),
           ),
@@ -156,7 +158,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
             resolution: ResolutionPreset.medium,
           ),
           FaceGuide(
-            color: _captured.isEmpty ? Colors.white : Colors.greenAccent,
+            color: _captured.isEmpty ? AppColors.cyan : AppColors.success,
           ),
           Positioned(
             left: 16,
@@ -179,11 +181,14 @@ class _EnrollScreenState extends State<EnrollScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            target?.instruction ?? 'Terminé !',
+                            context.tr(target?.instruction ?? 'done'),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           if (_hint != null)
-                            Text(_hint!, style: TextStyle(color: scheme.error)),
+                            Text(
+                              context.tr(_hint!),
+                              style: TextStyle(color: scheme.error),
+                            ),
                         ],
                       ),
                     ),
@@ -207,7 +212,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
                         child: CircleAvatar(
                           radius: 22,
                           backgroundColor: _captured.containsKey(p)
-                              ? Colors.green
+                              ? AppColors.success
                               : p == target
                               ? scheme.primary
                               : Colors.white24,
@@ -221,13 +226,16 @@ class _EnrollScreenState extends State<EnrollScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${_captured.length} / ${Pose.values.length} poses',
+                  context.tr('poses_progress', {
+                    'n': _captured.length,
+                    'total': Pose.values.length,
+                  }),
                   style: const TextStyle(color: Colors.white),
                 ),
                 const SizedBox(height: 12),
                 FilledButton.tonal(
                   onPressed: _captured.containsKey(Pose.front) ? _finish : null,
-                  child: const Text('Terminer maintenant'),
+                  child: Text(context.tr('finish_now')),
                 ),
               ],
             ),
