@@ -222,8 +222,14 @@ class RemoteApi {
       throw const RemoteException('Connexion au serveur interrompue.');
     } on TimeoutException {
       throw const RemoteException('Le serveur ne répond pas.');
-    } on HandshakeException {
-      throw const RemoteException('Erreur de connexion sécurisée (HTTPS).');
+    } on HandshakeException catch (e) {
+      // Shown to the user so certificate problems on the server can be
+      // diagnosed (e.g. incomplete chain, wrong domain, expired).
+      final detail = e.osError?.message ?? e.message;
+      throw RemoteException(
+        'Erreur de connexion sécurisée (HTTPS) : le téléphone refuse le '
+        'certificat du serveur. $detail',
+      );
     } finally {
       client.close(force: true);
     }
