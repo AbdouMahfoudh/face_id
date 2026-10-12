@@ -11,10 +11,13 @@ Ce dossier contient :
 
 ## Installation / mise à jour
 
-1. Copiez tous les fichiers du dossier sur le serveur, à la même place qu'avant
-   (par ex. `dolibarr/faceid_api`). Remplacez les anciens fichiers.
+1. Copiez tous les fichiers du dossier sur l'hébergement, dans le dossier
+   `faceid_api` du site `faceid.systeme-abdou.com` (FTP ou gestionnaire de
+   fichiers). Remplacez les anciens fichiers.
 2. Ouvrez `config.php` **sur le serveur** et remplissez :
-   - `DB_PASS` : le mot de passe MySQL ;
+   - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` : la base MySQL
+     créée dans le panneau de l'hébergeur (souvent `localhost` et le port
+     `3306`) ;
    - `ADMIN_PASSWORD` : le mot de passe du super-administrateur de la page web
      (identifiant : `ADMIN_USER`, par défaut `superadmin`).
 
@@ -24,7 +27,7 @@ Ce dossier contient :
 
 ## Utilisation
 
-1. Ouvrez `http://102.214.210.18:81/dolibarr/faceid_api/admin.php` et
+1. Ouvrez `https://faceid.systeme-abdou.com/faceid_api/admin.php` et
    connectez-vous en super-administrateur.
 2. Créez une école, puis, dans l'école, un compte **Administrateur de l'école**
    (le directeur). Il pourra se connecter à la même page web et ne verra que
@@ -93,10 +96,8 @@ invalide est ignoré. Valeurs possibles :
 ### Tester avec le simulateur
 
 Dans la fiche d'une école de test :
-- Adresse de l'API : `http://127.0.0.1:81/dolibarr/faceid_api/demo_gestion.php`
-  (le serveur s'appelle lui-même : utilisez `127.0.0.1`) ;
-- Adresse d'une fiche : `http://102.214.210.18:81/dolibarr/faceid_api/demo_gestion.php?fiche={matricule}`
-  (ouverte par le téléphone : utilisez l'adresse publique) ;
+- Adresse de l'API : `https://faceid.systeme-abdou.com/faceid_api/demo_gestion.php` ;
+- Adresse d'une fiche : `https://faceid.systeme-abdou.com/faceid_api/demo_gestion.php?fiche={matricule}` ;
 - Clé : `demo-faceid` ;
 - Matricules de test : `E001`, `E002`, `E003`, `P001`.
 
@@ -107,8 +108,7 @@ Dans la fiche d'une école de test :
   reconnaissance.
 - Nom et photo ne sont renvoyés que si la ressemblance est suffisante.
 - 8 mauvais mots de passe en 15 minutes bloquent temporairement la connexion.
-- Il est conseillé de fermer le port MySQL (3307) à Internet et de passer en
-  HTTPS si possible.
+- Le site est en HTTPS ; l'application refuse les adresses en `http://`.
 
 ## Prérequis
 

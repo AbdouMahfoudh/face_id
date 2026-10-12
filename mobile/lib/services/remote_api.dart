@@ -62,7 +62,7 @@ class RemoteApi {
   static Uri _endpoint(String baseUrl) {
     var url = baseUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'http://$url';
+      url = 'https://$url';
     }
     if (!url.endsWith('.php')) {
       url = url.endsWith('/') ? '${url}api.php' : '$url/api.php';

@@ -24,7 +24,10 @@ class EnrolledFace {
 
 enum ServerStatus { unknown, online, offline }
 
-const defaultServerUrl = 'http://102.214.210.18:81/dolibarr/faceid_api';
+const defaultServerUrl = 'https://faceid.systeme-abdou.com/faceid_api';
+
+/// Former self-hosted server; phones that saved it are moved to the new one.
+const _oldServerHost = '102.214.210.18';
 
 class AppState extends ChangeNotifier {
   AppState(this.db, this.faces, this.deviceId);
@@ -79,7 +82,15 @@ class AppState extends ChangeNotifier {
     state._lang = (await db.getSetting('lang')) == 'ar'
         ? AppLang.ar
         : AppLang.fr;
-    state._serverUrl = await db.getSetting('server_url') ?? defaultServerUrl;
+    final savedUrl = await db.getSetting('server_url');
+    if (savedUrl != null && savedUrl.contains(_oldServerHost)) {
+      await db.setSetting('server_url', null);
+      // Accounts of the old server do not exist on the new one.
+      await db.setSetting('session', null);
+      state._serverUrl = defaultServerUrl;
+    } else {
+      state._serverUrl = savedUrl ?? defaultServerUrl;
+    }
     final saved = await db.getSetting('session');
     if (saved != null) {
       try {

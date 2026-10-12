@@ -3,11 +3,12 @@
 // ⚠️ Remplissez ces valeurs UNIQUEMENT sur le serveur, jamais dans le dépôt GitHub
 // (le dépôt est public : tout le monde pourrait lire les mots de passe).
 
-// Si ce PHP tourne sur la même machine que MySQL, "127.0.0.1" suffit.
-const DB_HOST = '127.0.0.1';
-const DB_PORT = 3307;
-const DB_NAME = 'abdou_base';
-const DB_USER = 'abdou_user';
+// Base MySQL créée dans le panneau de l'hébergeur (le nom de la base et de
+// l'utilisateur ont souvent le préfixe du compte, par ex. "moncompte_faceid").
+const DB_HOST = 'localhost';
+const DB_PORT = 3306;
+const DB_NAME = 'NOM_DE_LA_BASE';
+const DB_USER = 'UTILISATEUR_MYSQL';
 const DB_PASS = 'CHANGEZ_MOI';
 
 // Super-administrateur de la page web admin.php (gère toutes les écoles).

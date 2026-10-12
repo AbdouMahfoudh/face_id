@@ -3,8 +3,8 @@
 // sans vraie école. Il respecte le « contrat système de gestion » (LISEZMOI.md).
 //
 // Réglages de test dans la page admin (fiche de l'école) :
-//   Adresse de l'API   : http://VOTRE_SERVEUR/…/faceid_api/demo_gestion.php
-//   Adresse d'une fiche : http://VOTRE_SERVEUR/…/faceid_api/demo_gestion.php?fiche={matricule}
+//   Adresse de l'API   : https://faceid.systeme-abdou.com/faceid_api/demo_gestion.php
+//   Adresse d'une fiche : https://faceid.systeme-abdou.com/faceid_api/demo_gestion.php?fiche={matricule}
 //   Clé d'accès         : demo-faceid
 // Matricules disponibles : E001, E002, E003, P001.
 //
