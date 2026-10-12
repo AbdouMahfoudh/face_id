@@ -185,16 +185,40 @@ class RemoteApi {
   }) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
     try {
-      final req = await client.postUrl(endpoint);
-      req.headers.contentType = ContentType.json;
-      // Some web firewalls reject requests that do not look like a browser.
-      req.headers.set(HttpHeaders.acceptHeader, 'application/json, */*');
-      req.headers.set(
-        HttpHeaders.userAgentHeader,
-        'Mozilla/5.0 (Linux; Android) FaceIDEcole/2.0',
-      );
-      req.add(utf8.encode(jsonEncode({...body, 'token': ?token})));
-      final res = await req.close().timeout(timeout);
+      final payload = utf8.encode(jsonEncode({...body, 'token': ?token}));
+      var url = endpoint;
+      late HttpClientResponse res;
+      // HttpClient does not follow redirects for POST. 307/308 keep the
+      // method and body, so they are safe to follow (some hosts redirect,
+      // e.g. to add or remove "www").
+      for (var hops = 0; ; hops++) {
+        final req = await client.postUrl(url);
+        req.followRedirects = false;
+        req.headers.contentType = ContentType.json;
+        // Some web firewalls reject requests that do not look like a browser.
+        req.headers.set(HttpHeaders.acceptHeader, 'application/json, */*');
+        req.headers.set(
+          HttpHeaders.userAgentHeader,
+          'Mozilla/5.0 (Linux; Android) FaceIDEcole/2.0',
+        );
+        req.add(payload);
+        res = await req.close().timeout(timeout);
+        final location = res.headers.value(HttpHeaders.locationHeader);
+        if (!res.isRedirect || location == null) break;
+        final next = url.resolve(location);
+        final followable =
+            (res.statusCode == 307 || res.statusCode == 308) &&
+            next.scheme == 'https' &&
+            hops < 3;
+        await res.drain<void>();
+        if (!followable) {
+          throw RemoteException(
+            'Le serveur redirige vers une autre adresse '
+            '(HTTP ${res.statusCode}) : $next',
+          );
+        }
+        url = next;
+      }
       final text = await res.transform(utf8.decoder).join().timeout(timeout);
       Object? decoded;
       try {
